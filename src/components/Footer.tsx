@@ -51,8 +51,8 @@ export const Footer: React.FC<FooterProps> = ({ setActiveSection, onOpenBooking 
           <ul className="space-y-2.5 text-sm">
             {[
               { id: 'home', label: 'Home Page' },
+              { id: 'services', label: 'Services & Booking' },
               { id: 'gallery', label: 'Gallery & Transformations' },
-              { id: 'shop', label: 'Hair Care & Extension Shop' },
               { id: 'contact', label: 'Location, About & Reviews' },
             ].map((item) => (
               <li key={item.id}>

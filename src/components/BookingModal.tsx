@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { X, CheckCircle2, Calendar, Clock, MapPin, Home, Phone, Smartphone, ArrowLeft, Share2, Sparkles } from 'lucide-react';
 import { Service, ServiceCategory } from '../types';
-import { MOCK_SERVICES } from '../data/mockData';
 
 interface BookingModalProps {
   isOpen: boolean;
   onClose: () => void;
+  services: Service[];
   preselectedService?: Service | null;
   onBookingComplete?: (bookingData: any) => void;
 }
@@ -13,12 +13,13 @@ interface BookingModalProps {
 export const BookingModal: React.FC<BookingModalProps> = ({
   isOpen,
   onClose,
+  services,
   preselectedService = null,
   onBookingComplete,
 }) => {
   const [step, setStep] = useState<number>(1);
   const [selectedCategory, setSelectedCategory] = useState<ServiceCategory>('Braids');
-  const [selectedService, setSelectedService] = useState<Service | null>(preselectedService || MOCK_SERVICES[0]);
+  const [selectedService, setSelectedService] = useState<Service | null>(preselectedService || services[0] || null);
   
   // Service Format: 'studio' | 'housecall'
   const [serviceLocationType, setServiceLocationType] = useState<'studio' | 'housecall'>('studio');
@@ -38,11 +39,16 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   // M-Pesa Payment State
   const [paymentStatus, setPaymentStatus] = useState<'idle' | 'stk_prompt' | 'verifying' | 'success'>('idle');
 
+  useEffect(() => {
+    if (preselectedService) setSelectedService(preselectedService);
+    else if (!selectedService || !services.some((service) => service.id === selectedService.id)) setSelectedService(services[0] || null);
+  }, [preselectedService, services, selectedService]);
+
   if (!isOpen) return null;
 
   const categories: ServiceCategory[] = ['Braids', 'Wigs & Extensions', 'Hair Treatments & Color', 'Makeup', 'Nails'];
   const availableTimes = ['09:00 AM', '10:30 AM', '11:00 AM', '01:30 PM', '03:00 PM', '04:30 PM'];
-  const filteredServices = MOCK_SERVICES.filter(s => s.category === selectedCategory);
+  const filteredServices = services.filter(s => s.category === selectedCategory);
 
   // Dynamic 30% Deposit Calculation
   const basePrice = selectedService ? selectedService.price : 0;

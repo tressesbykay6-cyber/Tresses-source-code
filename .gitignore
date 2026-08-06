@@ -6,3 +6,17 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# Local-only source material and scraper state: never deploy or commit these.
+/downloads/
+/assets/
+/cookies.txt
+/browser_progress.json
+/download_progress.json
+/post_links*.json
+/scrape_*.py
+/run_scraper.py
+/browser_media_downloader.py
+/process_gallery.py
+/test_*.py
+/image.png_2K_202608061930.jpeg

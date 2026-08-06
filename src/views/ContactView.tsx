@@ -77,8 +77,8 @@ export const ContactView: React.FC = () => {
           <div className="lg:col-span-5 relative">
             <div className="relative rounded-2xl overflow-hidden border border-[#E5D7C0] shadow-xl">
               <img
-                src="https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&q=80&w=800"
-                alt="Kay Master Stylist at Tresses"
+                src="/media/kay-founder.webp"
+                alt="Kay, founder and master hair artist at Tresses"
                 className="w-full h-80 sm:h-96 object-cover"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-[#1C1814]/80 via-transparent to-transparent flex items-end p-6">

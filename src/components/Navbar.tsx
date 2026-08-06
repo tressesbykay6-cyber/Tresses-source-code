@@ -1,28 +1,24 @@
 import React, { useState } from 'react';
-import { Menu, X, ShoppingBag, Calendar, Sparkles, MessageCircle, Home, Image, Store, Mail } from 'lucide-react';
+import { Menu, X, Calendar, MessageCircle, Home, Image, Scissors, Mail } from 'lucide-react';
 
 interface NavbarProps {
   activeSection: string;
   setActiveSection: (section: string) => void;
   onOpenBooking: () => void;
-  onOpenCart: () => void;
-  cartCount: number;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
   activeSection,
   setActiveSection,
   onOpenBooking,
-  onOpenCart,
-  cartCount,
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // Exact 4 pages requested by client: Home, Gallery, Shop, Contact
+  // Services is the booking catalog; a separate shop would duplicate it.
   const navLinks = [
     { id: 'home', label: 'Home' },
+    { id: 'services', label: 'Services' },
     { id: 'gallery', label: 'Gallery' },
-    { id: 'shop', label: 'Shop' },
     { id: 'contact', label: 'Contact' },
   ];
 
@@ -43,7 +39,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             className="flex items-center gap-3 text-left group focus:outline-none"
           >
             <div className="w-10 h-10 rounded-full border border-[#B88E39] bg-[#FFFDF9] flex items-center justify-center relative overflow-hidden group-hover:bg-[#F8E2C2]/40 transition-colors shadow-sm">
-              <span className="font-serif font-bold text-lg text-[#B88E39]">T</span>
+              <img src="/App_icon_logo_design_2K_202608061021.jpeg" alt="Tresses by Kay" className="w-full h-full object-cover" />
             </div>
             
             <div>
@@ -79,20 +75,6 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* Right Actions */}
           <div className="flex items-center space-x-3 sm:space-x-4">
             
-            {/* Cart Button */}
-            <button
-              onClick={onOpenCart}
-              className="relative p-2.5 rounded-full text-[#1C1814] hover:text-[#B88E39] hover:bg-[#FFFDF9] border border-[#E5D7C0]/60 transition-colors shadow-sm"
-              title="Shopping Cart"
-            >
-              <ShoppingBag className="w-4 h-4" />
-              {cartCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-[#B88E39] text-[#FAF7F2] text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
-                  {cartCount}
-                </span>
-              )}
-            </button>
-
             {/* Book Now Primary Button */}
             <button
               onClick={onOpenBooking}
@@ -194,13 +176,13 @@ export const Navbar: React.FC<NavbarProps> = ({
         </button>
 
         <button
-          onClick={() => handleNavClick('shop')}
+          onClick={() => handleNavClick('services')}
           className={`flex flex-col items-center text-[10px] ${
-            activeSection === 'shop' ? 'text-[#B88E39] font-bold' : 'text-[#5C5247]'
+            activeSection === 'services' ? 'text-[#B88E39] font-bold' : 'text-[#5C5247]'
           }`}
         >
-          <Store className="w-4 h-4 mb-0.5" />
-          <span>Shop</span>
+          <Scissors className="w-4 h-4 mb-0.5" />
+          <span>Services</span>
         </button>
 
         <button
