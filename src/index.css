@@ -1,0 +1,67 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --color-noir: #0E0D0C;
+    --color-charcoal: #221F1C;
+    --color-gold: #C6A15B;
+    --color-gold-hover: #b8924b;
+    --color-ivory: #F6F0E4;
+    --color-terracotta: #B9694F;
+  }
+
+  body {
+    background-color: #0E0D0C;
+    color: #F6F0E4;
+    font-family: 'Manrope', sans-serif;
+    overflow-x: hidden;
+  }
+
+  h1, h2, h3, .font-serif {
+    font-family: 'Playfair Display', serif;
+  }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0E0D0C;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #221F1C;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #C6A15B;
+}
+
+/* Shimmer animation */
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.animate-shimmer {
+  animation: shimmer 2s infinite;
+}
+
+/* Glass effect for overlays */
+.glass-panel {
+  background: rgba(34, 31, 28, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(198, 161, 91, 0.15);
+}
+
+.glass-card {
+  background: rgba(34, 31, 28, 0.6);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(246, 240, 228, 0.08);
+}
+

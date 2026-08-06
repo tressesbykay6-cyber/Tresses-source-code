@@ -1,0 +1,6 @@
+{
+  "name": "Tresses by Kay",
+  "description": "Nairobi's boutique beauty atelier for braids, wigs, hair treatments, color, and makeup at JKUAT Towers, Kenyatta Ave.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
