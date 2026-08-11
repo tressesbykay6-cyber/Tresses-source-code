@@ -16,7 +16,7 @@ import { PrivacyPolicyView } from './views/PrivacyPolicyView';
 import { TermsOfServiceView } from './views/TermsOfServiceView';
 
 import { Service, Stylist, GalleryItem } from './types';
-import { MOCK_REVIEWS } from './data/mockData';
+import { MOCK_REVIEWS, MOCK_SERVICES, MOCK_STYLISTS, MOCK_GALLERY } from './data/mockData';
 
 /* ─── Firestore default page settings (used only as fallback if doc doesn't exist yet) ── */
 export const DEFAULT_PAGE_SETTINGS = {
@@ -78,17 +78,29 @@ export default function App() {
   useEffect(() => {
     // 1. Services collection
     const unsubServices = onSnapshot(collection(db, 'services'), (snap) => {
-      setServices(snap.docs.map((d) => docToObj<Service>(d)));
+      if (snap.empty) {
+        setServices(MOCK_SERVICES);
+      } else {
+        setServices(snap.docs.map((d) => docToObj<Service>(d)));
+      }
     });
 
     // 2. Stylists collection
     const unsubStylists = onSnapshot(collection(db, 'stylists'), (snap) => {
-      setStylists(snap.docs.map((d) => docToObj<Stylist>(d)));
+      if (snap.empty) {
+        setStylists(MOCK_STYLISTS);
+      } else {
+        setStylists(snap.docs.map((d) => docToObj<Stylist>(d)));
+      }
     });
 
     // 3. Gallery collection
     const unsubGallery = onSnapshot(collection(db, 'gallery'), (snap) => {
-      setGalleryItems(snap.docs.map((d) => docToObj<GalleryItem>(d)));
+      if (snap.empty) {
+        setGalleryItems(MOCK_GALLERY);
+      } else {
+        setGalleryItems(snap.docs.map((d) => docToObj<GalleryItem>(d)));
+      }
     });
 
     // 4. Bookings collection
@@ -99,7 +111,13 @@ export default function App() {
     // 5. Page settings document (single doc)
     const unsubSettings = onSnapshot(doc(db, 'settings', 'pageSettings'), (snap) => {
       if (snap.exists()) {
-        setPageSettings(snap.data() as typeof DEFAULT_PAGE_SETTINGS);
+        const data = snap.data();
+        setPageSettings({
+          home: { ...DEFAULT_PAGE_SETTINGS.home, ...data.home },
+          services: { ...DEFAULT_PAGE_SETTINGS.services, ...data.services },
+          gallery: { ...DEFAULT_PAGE_SETTINGS.gallery, ...data.gallery },
+          contact: { ...DEFAULT_PAGE_SETTINGS.contact, ...data.contact },
+        });
       } else {
         setPageSettings(DEFAULT_PAGE_SETTINGS);
       }

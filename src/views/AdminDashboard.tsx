@@ -268,6 +268,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [localGallerySettings, setLocalGallerySettings] = useState(() => pageSettings.gallery);
   const [localContactSettings, setLocalContactSettings] = useState(() => pageSettings.contact);
 
+  // Media list from Firestore
+  const [mediaList, setMediaList] = useState<any[]>([]);
+  useEffect(() => {
+    if (panel === 'media') {
+      const unsub = onSnapshot(collection(db, 'media'), (snap) => {
+        setMediaList(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      });
+      return () => unsub();
+    }
+  }, [panel]);
+
   useEffect(() => {
     setLocalHomeSettings(pageSettings.home);
     setLocalServicesSettings(pageSettings.services);
@@ -457,6 +468,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       await cacheUpload(ready);
       if (upload) URL.revokeObjectURL(upload.previewUrl);
       setUpload(ready);
+      
+      let finalUrl = ready.previewUrl;
       try {
         const data = new FormData();
         data.append('asset', ready.file);
@@ -464,9 +477,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         if (!response.ok) throw new Error((await response.json().catch(() => null))?.error || 'The secure upload endpoint did not accept the file.');
         const result = await response.json();
         setUploadMessage(result.kind === 'video' ? 'MP4 accepted by the secure processor and queued for web transcode.' : `Optimized WebP uploaded securely (${Math.round(result.bytes / 1024)} KB).`);
+        if (result.url) finalUrl = result.url;
       } catch (publishError) {
         setUploadMessage(`Prepared and cached on this device. ${publishError instanceof Error ? publishError.message : 'Connect the protected API to publish it.'}`);
       }
+
+      // Record successful file in Firestore media list
+      await addDoc(collection(db, 'media'), {
+        name: ready.file.name,
+        url: finalUrl,
+        type: ready.file.type.startsWith('video/') ? 'video' : 'image',
+        size: ready.file.size,
+        uploadedAt: new Date().toISOString()
+      });
+
     } catch (error) {
       setUploadMessage(error instanceof Error ? error.message : 'Upload could not be prepared.');
     } finally {
@@ -941,20 +965,70 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
           {/* ═══ MEDIA ═══════════════════════════════ */}
           {panel === 'media' && (
-            <section className="max-w-2xl bg-[#FFFDF9] border border-[#DECDBD] rounded-3xl p-6 sm:p-8">
-              <div className="flex gap-3">
-                <div className="w-11 h-11 shrink-0 rounded-2xl bg-[#F8E7CD] grid place-items-center"><UploadCloud className="w-5 h-5 text-[#9A6F2E]" /></div>
-                <div>
-                  <h2 className="font-serif text-2xl font-bold">Phone-ready media upload</h2>
-                  <p className="text-sm text-[#665B53] mt-1">JPG, PNG, WebP, MP4, and WebM only. Three attempts per minute. Images are converted to WebP before they enter the device cache.</p>
+            <div className="space-y-6">
+              <section className="max-w-2xl bg-[#FFFDF9] border border-[#DECDBD] rounded-3xl p-6 sm:p-8">
+                <div className="flex gap-3">
+                  <div className="w-11 h-11 shrink-0 rounded-2xl bg-[#F8E7CD] grid place-items-center"><UploadCloud className="w-5 h-5 text-[#9A6F2E]" /></div>
+                  <div>
+                    <h2 className="font-serif text-2xl font-bold">Phone-ready media upload</h2>
+                    <p className="text-sm text-[#665B53] mt-1">JPG, PNG, WebP, MP4, and WebM only. Three attempts per minute. Images are converted to WebP before they enter the device cache.</p>
+                  </div>
                 </div>
-              </div>
-              <input ref={fileInput} className="sr-only" type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm" capture="environment" onChange={(event) => selectUpload(event.target.files?.[0])} />
-              <button disabled={uploading} onClick={() => fileInput.current?.click()} className="mt-6 min-h-12 w-full rounded-xl bg-[#403833] text-white font-bold text-sm disabled:opacity-50 hover:bg-[#2C2620] transition-colors">{uploading ? <><LoaderCircle className="w-4 h-4 animate-spin inline mr-2" />Preparing asset...</> : 'Choose photo or video'}</button>
-              {uploadMessage && <div className={`mt-4 rounded-xl p-4 text-sm flex gap-2 ${uploadMessage.includes('could not') || uploadMessage.includes('must') || uploadMessage.includes('limit') ? 'bg-[#FCE8E3] text-[#8E3C29]' : 'bg-[#E8F2E6] text-[#35643A]'}`}><CircleAlert className="w-4 h-4 shrink-0 mt-0.5" />{uploadMessage}</div>}
-              {upload && <div className="mt-5 rounded-2xl border border-[#DECDBD] overflow-hidden"><div className="aspect-video bg-[#403833]">{upload.file.type.startsWith('image/') ? <img src={upload.previewUrl} className="w-full h-full object-contain" alt="Prepared upload preview" /> : <video src={upload.previewUrl} className="w-full h-full object-contain" controls />}</div><div className="p-4 flex flex-wrap justify-between gap-2 text-xs"><span className="font-bold">{upload.file.name}</span><span>{Math.round(upload.file.size / 1024)} KB · {upload.requiresServerTranscode ? 'Server transcode required' : 'WebP optimized'}</span></div></div>}
-              <p className="mt-5 text-xs leading-relaxed text-[#665B53]"><Check className="w-3.5 h-3.5 inline text-[#35643A]" /> Cached uploads are not public. A signed, authenticated server endpoint must transcode MP4 assets and issue the final public URL.</p>
-            </section>
+                <input ref={fileInput} className="sr-only" type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm" capture="environment" onChange={(event) => selectUpload(event.target.files?.[0])} />
+                <button disabled={uploading} onClick={() => fileInput.current?.click()} className="mt-6 min-h-12 w-full rounded-xl bg-[#403833] text-white font-bold text-sm disabled:opacity-50 hover:bg-[#2C2620] transition-colors">{uploading ? <><LoaderCircle className="w-4 h-4 animate-spin inline mr-2" />Preparing asset...</> : 'Choose photo or video'}</button>
+                {uploadMessage && <div className={`mt-4 rounded-xl p-4 text-sm flex gap-2 ${uploadMessage.includes('could not') || uploadMessage.includes('must') || uploadMessage.includes('limit') ? 'bg-[#FCE8E3] text-[#8E3C29]' : 'bg-[#E8F2E6] text-[#35643A]'}`}><CircleAlert className="w-4 h-4 shrink-0 mt-0.5" />{uploadMessage}</div>}
+                {upload && <div className="mt-5 rounded-2xl border border-[#DECDBD] overflow-hidden"><div className="aspect-video bg-[#403833]">{upload.file.type.startsWith('image/') ? <img src={upload.previewUrl} className="w-full h-full object-contain" alt="Prepared upload preview" /> : <video src={upload.previewUrl} className="w-full h-full object-contain" controls />}</div><div className="p-4 flex flex-wrap justify-between gap-2 text-xs"><span className="font-bold">{upload.file.name}</span><span>{Math.round(upload.file.size / 1024)} KB · {upload.requiresServerTranscode ? 'Server transcode required' : 'WebP optimized'}</span></div></div>}
+                <p className="mt-5 text-xs leading-relaxed text-[#665B53]"><Check className="w-3.5 h-3.5 inline text-[#35643A]" /> Cached uploads are not public. A signed, authenticated server endpoint must transcode MP4 assets and issue the final public URL.</p>
+              </section>
+
+              {/* Grid of uploaded media */}
+              <section className="bg-[#FFFDF9] border border-[#DECDBD] rounded-3xl p-6 sm:p-8 space-y-4">
+                <h3 className="font-serif text-xl font-bold">Existing Media Assets</h3>
+                {mediaList.length === 0 ? (
+                  <p className="text-sm text-[#665B53]">No media uploaded yet.</p>
+                ) : (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                    {mediaList.map((item) => (
+                      <div key={item.id} className="border border-[#EADCCB] rounded-xl overflow-hidden p-2.5 bg-[#FAF7F2] flex flex-col justify-between space-y-2.5">
+                        <div className="relative aspect-square rounded-lg overflow-hidden bg-[#403833]">
+                          {item.type === 'video' ? (
+                            <video src={item.url} className="w-full h-full object-cover" controls />
+                          ) : (
+                            <img src={item.url} alt={item.name} className="w-full h-full object-cover" />
+                          )}
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-[10px] font-bold line-clamp-1 text-[#1C1814]">{item.name}</p>
+                          <p className="text-[9px] text-[#665B53]">{Math.round(item.size / 1024)} KB</p>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(item.url);
+                              alert('Media URL copied to clipboard!');
+                            }}
+                            className="flex-1 min-h-7 bg-[#FFFDF9] border border-[#DECDBD] text-[9px] font-bold rounded-lg hover:bg-[#F7F2EB] transition-colors"
+                          >
+                            Copy URL
+                          </button>
+                          <button
+                            onClick={async () => {
+                              if (confirm('Are you sure you want to delete this media asset?')) {
+                                try { await deleteDoc(doc(db, 'media', item.id)); } catch (err) { console.error(err); }
+                              }
+                            }}
+                            className="p-1 border border-red-200 text-red-600 rounded-lg hover:bg-red-50 transition-colors flex items-center justify-center"
+                            title="Delete"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </section>
+            </div>
           )}
 
           {/* ═══ PUBLIC PAGES CMS ═══════════════════ */}
