@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { X, CheckCircle2, Calendar, Clock, MapPin, Home, MessageCircle, ArrowLeft, Sparkles } from 'lucide-react';
 import { Service, ServiceCategory, Stylist } from '../types';
+import { publicRequest } from '../lib/api';
 
 interface BookingModalProps {
   isOpen: boolean;
@@ -38,6 +39,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   const [clientPhone, setClientPhone] = useState('');
   const [clientNotes, setClientNotes] = useState('');
   const [requestedStylist, setRequestedStylist] = useState<string>(''); // For preferred stylist selection
+  const [bookingError, setBookingError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (preselectedService) setSelectedService(preselectedService);
@@ -91,8 +94,21 @@ export const BookingModal: React.FC<BookingModalProps> = ({
 
   const whatsappUrl = `https://wa.me/254118831488?text=${encodeURIComponent(buildWhatsAppMessage())}`;
 
-  const handleBookViaWhatsApp = () => {
-    if (onBookingComplete && selectedService) {
+  const handleBookViaWhatsApp = async () => {
+    if (!selectedService || submitting) return;
+    setBookingError('');
+    setSubmitting(true);
+    // Open synchronously from the click event so mobile browsers do not block it.
+    const whatsappWindow = window.open('', '_blank');
+    if (whatsappWindow) whatsappWindow.opener = null;
+    try {
+      await publicRequest('/bookings', { method: 'POST', body: JSON.stringify({
+        serviceId: selectedService.id,
+        locationType: serviceLocationType,
+        housecallDetails: serviceLocationType === 'housecall' ? { estate: housecallEstate, address: housecallAddress, landmark: housecallLandmark } : undefined,
+        date: selectedDate, timeSlot: selectedTime, clientName, clientPhone, notes: clientNotes, requestedStylistName: requestedStylist,
+      }) });
+      if (onBookingComplete) {
       const newBooking = {
         id: `bk-${Math.floor(1000 + Math.random() * 9000)}`,
         service: selectedService,
@@ -114,11 +130,19 @@ export const BookingModal: React.FC<BookingModalProps> = ({
         requestedStylistName: requestedStylist || 'None',
         durationMinutes: selectedService.durationMinutes || 60,
       };
-      onBookingComplete(newBooking);
+        onBookingComplete(newBooking);
+      }
+      if (whatsappWindow) whatsappWindow.location.href = whatsappUrl;
+      else setBookingError('Your booking is saved, but your browser blocked WhatsApp. Please allow pop-ups and use the WhatsApp button on this page.');
+      setStep(4);
+    } catch (error) {
+      // WhatsApp remains a reliable booking channel while the protected API is unavailable.
+      if (whatsappWindow) whatsappWindow.location.href = whatsappUrl;
+      else window.location.href = whatsappUrl;
+      setStep(4);
+    } finally {
+      setSubmitting(false);
     }
-
-    window.open(whatsappUrl, '_blank');
-    setStep(4);
   };
 
   const handleResetModal = () => {
@@ -358,7 +382,10 @@ export const BookingModal: React.FC<BookingModalProps> = ({
               </div>
               <div className="flex justify-between items-center pt-4 border-t border-[#E5D7C0]/60">
                 <button onClick={() => setStep(2)} className="text-xs text-[#5C5247] hover:text-[#B88E39] flex items-center gap-1 font-medium"><ArrowLeft className="w-4 h-4" /> Back</button>
-                <button onClick={handleBookViaWhatsApp} disabled={!selectedDate || !selectedTime || !clientName || !clientPhone} className="bg-[#25D366] hover:bg-[#1da851] text-white font-bold text-xs py-3 px-6 rounded-full transition-all shadow-md">Complete Booking via WhatsApp</button>
+                <div className="text-right">
+                  {bookingError && <p role="alert" className="mb-2 max-w-xs text-[11px] text-red-600">{bookingError}</p>}
+                  <button type="button" onClick={handleBookViaWhatsApp} disabled={submitting || !selectedDate || !selectedTime || !clientName || !clientPhone || (serviceLocationType === 'housecall' && !housecallEstate)} className="bg-[#25D366] hover:bg-[#1da851] disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-xs py-3 px-6 rounded-full transition-all shadow-md">{submitting ? 'Saving booking…' : 'Complete Booking via WhatsApp'}</button>
+                </div>
               </div>
             </div>
           )}

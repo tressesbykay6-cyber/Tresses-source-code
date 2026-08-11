@@ -4,7 +4,7 @@ import {
   FileImage, LayoutDashboard, LoaderCircle, Plus, Scissors, ShieldCheck,
   Trash2, UploadCloud, X, MessageCircle, Download, Users, Star,
   Search, LogOut, Lock, TrendingUp, DollarSign, Clock, Eye, Send,
-  RefreshCw, AlertTriangle, CheckCircle2, MessageSquare, Filter, Play,
+  RefreshCw, AlertTriangle, CheckCircle2, MessageSquare, Filter, Play, ArrowLeft,
 } from 'lucide-react';
 import { Service, ServiceCategory, Stylist, GalleryItem } from '../types';
 import { PreparedUpload, allowUploadAttempt, cacheUpload, prepareUpload } from '../lib/mediaUpload';
@@ -12,8 +12,9 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, LineChart, Line, CartesianGrid, Legend,
 } from 'recharts';
-import { db } from '../lib/firebase';
-import { collection, doc, setDoc, addDoc, deleteDoc, updateDoc, onSnapshot } from 'firebase/firestore';
+import { auth } from '../lib/firebase';
+import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import { adminRequest, apiRequest } from '../lib/api';
 import { MOCK_SERVICES, MOCK_GALLERY, MOCK_STYLISTS } from '../data/mockData';
 import { DEFAULT_PAGE_SETTINGS } from '../App';
 
@@ -63,12 +64,6 @@ interface AdminDashboardProps {
 }
 
 /* ─── Constants ──────────────────────────────────────────────── */
-
-const ADMIN_USERNAME = 'kavatah';
-const ADMIN_PASSCODE = 'kavatahkarembo123';
-const REFUND_RATE = 0.85; // 85% refund
-const REFUND_FEE_RATE = 0.15; // 15% fee
-const REFUND_WAITING_DAYS = 7;
 
 type Panel = 'overview' | 'bookings' | 'calendar' | 'services' | 'stylists' | 'clients' | 'comments' | 'media' | 'pages' | 'settings';
 const categories: ServiceCategory[] = ['Braids', 'Wigs & Extensions', 'Hair Treatments & Color', 'Makeup', 'Nails'];
@@ -121,19 +116,24 @@ const emptyGalleryItem: GalleryItem = {
 /* ─── Login Gate ──────────────────────────────────────────────── */
 
 const AdminLogin: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [passcode, setPasscode] = useState('');
   const [error, setError] = useState('');
   const [showPasscode, setShowPasscode] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleLogin = (e: FormEvent) => {
+  const handleLogin = async (e: FormEvent) => {
     e.preventDefault();
-    if (username === ADMIN_USERNAME && passcode === ADMIN_PASSCODE) {
-      sessionStorage.setItem('tresses-admin-auth', 'true');
+    setError('');
+    setSubmitting(true);
+    try {
+      const credential = await signInWithEmailAndPassword(auth, email.trim(), passcode);
+      await apiRequest('/session', { method: 'POST', body: JSON.stringify({ idToken: await credential.user.getIdToken(true) }) });
       onLogin();
-    } else {
-      setError('Invalid credentials. Please try again.');
-      setTimeout(() => setError(''), 3000);
+    } catch {
+      setError('Sign-in was not accepted. Use an authorized Firebase Authentication account.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -162,15 +162,15 @@ const AdminLogin: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
 
         <div className="space-y-4">
           <label className="block space-y-1.5">
-            <span className="text-xs font-bold text-[#8C8071] uppercase tracking-wider">Username</span>
+            <span className="text-xs font-bold text-[#8C8071] uppercase tracking-wider">Admin email</span>
             <input
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               required
-              autoComplete="username"
+              autoComplete="email"
               className="w-full bg-[#1C1814] border border-[#5C5247] rounded-xl px-4 py-3 text-[#FAF7F2] text-sm focus:outline-none focus:border-[#B88E39] transition-colors placeholder:text-[#5C5247]"
-              placeholder="Enter username"
+              placeholder="you@example.com"
             />
           </label>
 
@@ -193,8 +193,8 @@ const AdminLogin: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
           </label>
         </div>
 
-        <button type="submit" className="w-full bg-[#B88E39] hover:bg-[#A37B2C] text-[#FAF7F2] font-bold text-sm py-3.5 rounded-xl transition-all shadow-lg">
-          Sign In
+        <button type="submit" disabled={submitting} className="w-full bg-[#B88E39] hover:bg-[#A37B2C] disabled:opacity-60 text-[#FAF7F2] font-bold text-sm py-3.5 rounded-xl transition-all shadow-lg">
+          {submitting ? 'Signing in…' : 'Sign In'}
         </button>
 
         <p className="text-center text-[10px] text-[#5C5247]">
@@ -243,7 +243,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   pageSettings, onPageSettingsChange,
   onExit
 }) => {
-  const [isAuthenticated, setIsAuthenticated] = useState(() => sessionStorage.getItem('tresses-admin-auth') === 'true');
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [checkingSession, setCheckingSession] = useState(true);
   const [panel, setPanel] = useState<Panel>('overview');
   const [editingService, setEditingService] = useState<Service | null>(null);
   const [editingStylist, setEditingStylist] = useState<Stylist | null>(null);
@@ -268,16 +269,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [localGallerySettings, setLocalGallerySettings] = useState(() => pageSettings.gallery);
   const [localContactSettings, setLocalContactSettings] = useState(() => pageSettings.contact);
 
-  // Media list from Firestore
+  // Protected data is fetched from the admin API, never from browser Firestore.
   const [mediaList, setMediaList] = useState<any[]>([]);
   useEffect(() => {
-    if (panel === 'media') {
-      const unsub = onSnapshot(collection(db, 'media'), (snap) => {
-        setMediaList(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-      });
-      return () => unsub();
-    }
-  }, [panel]);
+    if (isAuthenticated) adminRequest<any[]>('/media').then(setMediaList).catch(() => setMediaList([]));
+  }, [isAuthenticated]);
 
   useEffect(() => {
     setLocalHomeSettings(pageSettings.home);
@@ -286,14 +282,61 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setLocalContactSettings(pageSettings.contact);
   }, [pageSettings]);
 
-  // Comments from Firestore
+  // Comments are private until an administrator explicitly replies.
   const [comments, setComments] = useState<ClientComment[]>([]);
   useEffect(() => {
-    const unsub = onSnapshot(collection(db, 'comments'), (snap) => {
-      setComments(snap.docs.map(d => ({ id: d.id, ...d.data() } as ClientComment)));
-    });
-    return () => unsub();
+    if (isAuthenticated) adminRequest<ClientComment[]>('/comments').then(setComments).catch(() => setComments([]));
+  }, [isAuthenticated]);
+
+  // Admin Config from Firestore (Credentials & Refund Policy)
+  const [adminConfig, setAdminConfig] = useState({
+    refundRate: 0.85,
+    refundFeeRate: 0.15,
+    refundWaitingDays: 7
+  });
+
+  // Settings Edit Form States
+  const [settingsRefundRate, setSettingsRefundRate] = useState(85);
+  const [settingsProcessingFee, setSettingsProcessingFee] = useState(15);
+  const [settingsWaitingDays, setSettingsWaitingDays] = useState(7);
+  const [settingsSaveMessage, setSettingsSaveMessage] = useState('');
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    adminRequest<any[]>('/settings').then((settings) => {
+      const data = settings.find((setting) => setting.id === 'businessSettings') || {};
+      const configData = { refundRate: data.refundRate ?? 0.85, refundFeeRate: data.refundFeeRate ?? 0.15, refundWaitingDays: data.refundWaitingDays ?? 7 };
+      setAdminConfig(configData); setSettingsRefundRate(Math.round(configData.refundRate * 100)); setSettingsProcessingFee(Math.round(configData.refundFeeRate * 100)); setSettingsWaitingDays(configData.refundWaitingDays);
+    }).catch(() => undefined);
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    apiRequest('/session').then(() => setIsAuthenticated(true)).catch(() => undefined).finally(() => setCheckingSession(false));
   }, []);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    adminRequest<AdminBooking[]>('/bookings').then(onBookingsChange).catch(() => onBookingsChange([]));
+    adminRequest<any[]>('/media').then(setMediaList).catch(() => setMediaList([]));
+    adminRequest<ClientComment[]>('/comments').then(setComments).catch(() => setComments([]));
+  }, [isAuthenticated]);
+
+  const saveAdminSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSettingsSaveMessage('');
+    try {
+      await adminRequest('/settings/businessSettings', { method: 'PUT', body: JSON.stringify({
+        refundRate: settingsRefundRate / 100,
+        refundFeeRate: settingsProcessingFee / 100,
+        refundWaitingDays: settingsWaitingDays
+      }) });
+      setSettingsSaveMessage('Settings saved successfully!');
+      setTimeout(() => setSettingsSaveMessage(''), 4000);
+    } catch (err) {
+      console.error(err);
+      setSettingsSaveMessage('Failed to save settings: ' + (err instanceof Error ? err.message : 'Unknown error'));
+    }
+  };
 
   /* ─── Computed KPIs ───────────────────────────────── */
   const pendingCount = bookings.filter(b => b.status === 'Pending').length;
@@ -369,27 +412,27 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     const updates: any = { status };
     if (status === 'Confirmed') updates.depositPaid = b.depositPaid || Math.round(b.totalPrice * 0.3);
     if (status === 'Verified') updates.verifiedAt = new Date().toISOString();
-    if (status === 'Refunded') updates.refundAmount = Math.round(b.depositPaid * REFUND_RATE);
-    try { await updateDoc(doc(db, 'bookings', id), updates); } catch (err) { console.error(err); }
+    if (status === 'Refunded') updates.refundAmount = Math.round(b.depositPaid * adminConfig.refundRate);
+    try { await adminRequest(`/bookings/${id}`, { method: 'PATCH', body: JSON.stringify(updates) }); onBookingsChange(bookings.map((item) => item.id === id ? { ...item, ...updates } : item)); } catch (err) { console.error(err); }
   };
 
   const deleteBooking = async (id: string) => {
     if (confirm('Are you sure you want to permanently delete this booking?')) {
-      try { await deleteDoc(doc(db, 'bookings', id)); } catch (err) { console.error(err); }
+      try { await adminRequest(`/bookings/${id}`, { method: 'DELETE' }); onBookingsChange(bookings.filter((item) => item.id !== id)); } catch (err) { console.error(err); }
     }
   };
 
   const addAdminComment = async (id: string) => {
     const comment = adminCommentInput[id]?.trim();
     if (!comment) return;
-    try { await updateDoc(doc(db, 'bookings', id), { adminComment: comment }); } catch (err) { console.error(err); }
+    try { await adminRequest(`/bookings/${id}`, { method: 'PATCH', body: JSON.stringify({ adminComment: comment }) }); onBookingsChange(bookings.map((item) => item.id === id ? { ...item, adminComment: comment } : item)); } catch (err) { console.error(err); }
     setAdminCommentInput(prev => ({ ...prev, [id]: '' }));
   };
 
   const replyToComment = async (commentId: string) => {
     const reply = commentReply[commentId]?.trim();
     if (!reply) return;
-    try { await updateDoc(doc(db, 'comments', commentId), { adminReply: reply, adminReplyDate: new Date().toISOString().slice(0, 10) }); } catch (err) { console.error(err); }
+    try { const next = comments.map((item) => item.id === commentId ? { ...item, adminReply: reply, adminReplyDate: new Date().toISOString().slice(0, 10) } : item); const current = next.find((item) => item.id === commentId); await adminRequest(`/comments/${commentId}`, { method: 'PUT', body: JSON.stringify(current) }); setComments(next); } catch (err) { console.error(err); }
     setCommentReply(prev => ({ ...prev, [commentId]: '' }));
   };
 
@@ -400,13 +443,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     const specialties = stylistSpecialtiesStr.split(',').map(s => s.trim()).filter(Boolean);
     const stylistId = editingStylist.id || `stylist-${Date.now()}`;
     const nextStylist = { ...editingStylist, id: stylistId, specialties };
-    try { await setDoc(doc(db, 'stylists', stylistId), nextStylist); } catch (err) { console.error(err); }
+    try { await adminRequest(`/stylists/${stylistId}`, { method: 'PUT', body: JSON.stringify(nextStylist) }); onStylistsChange([...stylists.filter((item) => item.id !== stylistId), nextStylist]); } catch (err) { console.error(err); }
     setEditingStylist(null);
   };
 
   const deleteStylist = async (id: string) => {
     if (confirm('Are you sure you want to delete this stylist?')) {
-      try { await deleteDoc(doc(db, 'stylists', id)); } catch (err) { console.error(err); }
+      try { await adminRequest(`/stylists/${id}`, { method: 'DELETE' }); onStylistsChange(stylists.filter((item) => item.id !== id)); } catch (err) { console.error(err); }
     }
   };
 
@@ -421,13 +464,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     if (!editingGalleryItem || !editingGalleryItem.title.trim()) return;
     const itemId = editingGalleryItem.id || `gallery-${Date.now()}`;
     const nextItem = { ...editingGalleryItem, id: itemId };
-    try { await setDoc(doc(db, 'gallery', itemId), nextItem); } catch (err) { console.error(err); }
+    try { await adminRequest(`/gallery/${itemId}`, { method: 'PUT', body: JSON.stringify(nextItem) }); onGalleryItemsChange([...galleryItems.filter((item) => item.id !== itemId), nextItem]); } catch (err) { console.error(err); }
     setEditingGalleryItem(null);
   };
 
   const deleteGalleryItem = async (id: string) => {
     if (confirm('Are you sure you want to delete this Lookbook item?')) {
-      try { await deleteDoc(doc(db, 'gallery', id)); } catch (err) { console.error(err); }
+      try { await adminRequest(`/gallery/${id}`, { method: 'DELETE' }); onGalleryItemsChange(galleryItems.filter((item) => item.id !== id)); } catch (err) { console.error(err); }
     }
   };
 
@@ -439,7 +482,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     if (pageKey === 'contact') targetSettings = localContactSettings;
 
     try {
-      await setDoc(doc(db, 'settings', 'pageSettings'), { ...pageSettings, [pageKey]: targetSettings });
+      const nextSettings = { ...pageSettings, [pageKey]: targetSettings };
+      await adminRequest('/settings/pageSettings', { method: 'PUT', body: JSON.stringify(nextSettings) });
+      onPageSettingsChange(nextSettings);
     } catch (err) { console.error(err); }
     setEditingPage(null);
     alert(`${pageKey.charAt(0).toUpperCase() + pageKey.slice(1)} page content updated successfully!`);
@@ -452,11 +497,23 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     const durationLabel = editingService.durationMinutes >= 60 ? `${editingService.durationMinutes / 60} hr${editingService.durationMinutes === 60 ? '' : 's'}` : `${editingService.durationMinutes} mins`;
     const serviceId = editingService.id || `service-${Date.now()}`;
     const next = { ...editingService, id: serviceId, durationLabel, depositAmount: Math.round(editingService.price * 0.3) };
-    try { await setDoc(doc(db, 'services', serviceId), next); } catch (err) { console.error(err); }
+    try { await adminRequest(`/services/${serviceId}`, { method: 'PUT', body: JSON.stringify(next) }); onServicesChange([...services.filter((item) => item.id !== serviceId), next]); } catch (err) { console.error(err); }
     setEditingService(null);
   };
 
-  const removeService = async (id: string) => { try { await deleteDoc(doc(db, 'services', id)); } catch (err) { console.error(err); } };
+  const removeService = async (id: string) => { try { await adminRequest(`/services/${id}`, { method: 'DELETE' }); onServicesChange(services.filter((item) => item.id !== id)); } catch (err) { console.error(err); } };
+
+  const uploadImage = async (file: File) => {
+    allowUploadAttempt();
+    const ready = await prepareUpload(file);
+    if (!ready.file.type.startsWith('image/')) throw new Error('Choose an image for this field.');
+    const data = new FormData();
+    data.append('asset', ready.file);
+    const result = await apiRequest<{ url?: string }>('/admin/assets', { method: 'POST', body: data });
+    if (!result.url) throw new Error('The image was not published.');
+    setMediaList((current) => [{ id: ready.id, name: file.name, url: result.url, type: 'image', size: ready.file.size }, ...current]);
+    return result.url;
+  };
 
   const selectUpload = async (file: File | undefined) => {
     if (!file) return;
@@ -482,14 +539,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         setUploadMessage(`Prepared and cached on this device. ${publishError instanceof Error ? publishError.message : 'Connect the protected API to publish it.'}`);
       }
 
-      // Record successful file in Firestore media list
-      await addDoc(collection(db, 'media'), {
-        name: ready.file.name,
-        url: finalUrl,
-        type: ready.file.type.startsWith('video/') ? 'video' : 'image',
-        size: ready.file.size,
-        uploadedAt: new Date().toISOString()
-      });
+      if (finalUrl === ready.previewUrl) throw new Error('The upload was not published. Please retry after signing in again.');
 
     } catch (error) {
       setUploadMessage(error instanceof Error ? error.message : 'Upload could not be prepared.');
@@ -499,7 +549,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   };
 
   const handleLogout = () => {
-    sessionStorage.removeItem('tresses-admin-auth');
+    apiRequest('/session', { method: 'DELETE' }).catch(() => undefined);
+    signOut(auth).catch(() => undefined);
     setIsAuthenticated(false);
   };
 
@@ -518,6 +569,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   ];
 
   /* ─── Auth Gate ───────────────────────────────────── */
+  if (checkingSession) return <div className="min-h-screen grid place-items-center bg-[#1C1814] text-[#FAF7F2] text-sm">Checking secure admin session…</div>;
   if (!isAuthenticated) return <AdminLogin onLogin={() => setIsAuthenticated(true)} />;
 
   /* ─── Render ──────────────────────────────────────── */
@@ -549,7 +601,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
           <div className="hidden lg:block rounded-2xl bg-[#F7F2EB] p-4 text-xs leading-relaxed text-[#665B53] mb-3">
             <strong className="block text-[#2F2924] mb-1">Refund Policy</strong>
-            85% of deposits refunded after {REFUND_WAITING_DAYS} days. 15% processing fee applies.
+            {Math.round(adminConfig.refundRate * 100)}% of deposits refunded after {adminConfig.refundWaitingDays} days. {Math.round(adminConfig.refundFeeRate * 100)}% processing fee applies.
           </div>
 
           <div className="flex gap-2">
@@ -771,7 +823,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             {(booking.status === 'Confirmed' || booking.status === 'Verified') && (
                               <button onClick={() => updateStatus(booking.id, 'Completed')} className="min-h-8 rounded-lg bg-emerald-600 text-white px-2.5 text-[11px] font-bold hover:bg-emerald-700">Complete</button>
                             )}
-                            {(booking.status === 'Confirmed' || booking.status === 'Verified') && booking.date && daysAgo(booking.date) >= REFUND_WAITING_DAYS && (
+                            {(booking.status === 'Confirmed' || booking.status === 'Verified') && booking.date && daysAgo(booking.date) >= adminConfig.refundWaitingDays && (
                               <button onClick={() => updateStatus(booking.id, 'Refunded')} className="min-h-8 rounded-lg bg-orange-500 text-white px-2.5 text-[11px] font-bold hover:bg-orange-600 flex items-center gap-1"><RefreshCw className="w-3 h-3" />Refund</button>
                             )}
                             <button onClick={() => deleteBooking(booking.id)} className="min-h-8 rounded-lg border border-red-200 text-red-600 px-2.5 text-[11px] font-bold hover:bg-red-50 flex items-center gap-1"><Trash2 className="w-3 h-3" />Delete</button>
@@ -942,7 +994,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <h3 className="font-bold text-sm">{comment.clientName}</h3>
-                      <p className="text-[10px] text-[#665B53]">{comment.date} · Booking: {comment.bookingId}</p>
+                      <p className="text-[10px] text-[#665B53]">
+                        {comment.date} · Booking: {comment.bookingId}
+                        {comment.clientPhone ? ` · Phone: ${comment.clientPhone}` : ''}
+                      </p>
                     </div>
                     {!comment.adminReply && <span className="shrink-0 text-[10px] bg-amber-100 text-amber-700 font-bold px-2 py-0.5 rounded-full">Needs reply</span>}
                   </div>
@@ -953,9 +1008,24 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       <p className="text-[#2F2924]">{comment.adminReply}</p>
                     </div>
                   ) : (
-                    <div className="flex gap-2">
-                      <input value={commentReply[comment.id] || ''} onChange={e => setCommentReply(p => ({ ...p, [comment.id]: e.target.value }))} placeholder="Write reply…" className="flex-1 border border-[#DECDBD] rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#B88E39]" />
-                      <button onClick={() => replyToComment(comment.id)} className="min-h-10 bg-[#403833] text-white rounded-xl px-4 text-xs font-bold hover:bg-[#2C2620] flex items-center gap-1"><Send className="w-3.5 h-3.5" />Reply</button>
+                    <div className="flex flex-col gap-2">
+                      <div className="flex gap-2">
+                        <input value={commentReply[comment.id] || ''} onChange={e => setCommentReply(p => ({ ...p, [comment.id]: e.target.value }))} placeholder="Write reply…" className="flex-1 border border-[#DECDBD] rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#B88E39]" />
+                        <button onClick={() => replyToComment(comment.id)} className="min-h-10 bg-[#403833] text-white rounded-xl px-4 text-xs font-bold hover:bg-[#2C2620] flex items-center gap-1"><Send className="w-3.5 h-3.5" />Save Reply</button>
+                      </div>
+                      {comment.clientPhone && (
+                        <div className="flex justify-end">
+                          <a
+                            href={buildWhatsAppUrl(comment.clientPhone, commentReply[comment.id] || `Hi ${comment.clientName}, regarding your inquiry on Tresses by Kay: "${comment.message}" — `)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="min-h-9 bg-green-600 hover:bg-green-700 text-white rounded-xl px-4 text-xs font-bold flex items-center gap-1.5 transition-colors shadow-sm active:scale-95"
+                          >
+                            <MessageCircle className="w-3.5 h-3.5" />
+                            Reply on WhatsApp ({comment.clientPhone})
+                          </a>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -1014,7 +1084,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                           <button
                             onClick={async () => {
                               if (confirm('Are you sure you want to delete this media asset?')) {
-                                try { await deleteDoc(doc(db, 'media', item.id)); } catch (err) { console.error(err); }
+                                try { await adminRequest(`/media/${item.id}`, { method: 'DELETE' }); setMediaList((current) => current.filter((media) => media.id !== item.id)); } catch (err) { console.error(err); }
                               }
                             }}
                             className="p-1 border border-red-200 text-red-600 rounded-lg hover:bg-red-50 transition-colors flex items-center justify-center"
@@ -1217,43 +1287,45 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           {/* ═══ SETTINGS ═══════════════════════════ */}
           {panel === 'settings' && (
             <div className="space-y-6 max-w-2xl">
-              <section className="bg-[#FFFDF9] border border-[#DECDBD] rounded-3xl p-6 space-y-4">
-                <h2 className="font-serif text-2xl font-bold">Refund Policy</h2>
-                <div className="grid sm:grid-cols-2 gap-4">
-                  <div className="bg-[#F7F2EB] rounded-xl p-4">
-                    <p className="text-xs font-bold text-[#665B53] uppercase tracking-wider">Refund Rate</p>
-                    <p className="text-2xl font-serif font-bold text-[#B88E39] mt-1">{REFUND_RATE * 100}%</p>
-                    <p className="text-xs text-[#665B53] mt-1">of deposit returned to client</p>
+              <form onSubmit={saveAdminSettings} className="space-y-6">
+                <section className="bg-[#FFFDF9] border border-[#DECDBD] rounded-3xl p-6 space-y-4">
+                  <h2 className="font-serif text-2xl font-bold">Refund Policy</h2>
+                  <div className="grid sm:grid-cols-3 gap-4">
+                    <label className="admin-field">Refund Rate (%)
+                      <input required type="number" min="0" max="100" value={settingsRefundRate} onChange={e => setSettingsRefundRate(Number(e.target.value))} />
+                    </label>
+                    <label className="admin-field">Processing Fee (%)
+                      <input required type="number" min="0" max="100" value={settingsProcessingFee} onChange={e => setSettingsProcessingFee(Number(e.target.value))} />
+                    </label>
+                    <label className="admin-field">Waiting Period (days)
+                      <input required type="number" min="0" value={settingsWaitingDays} onChange={e => setSettingsWaitingDays(Number(e.target.value))} />
+                    </label>
                   </div>
-                  <div className="bg-[#F7F2EB] rounded-xl p-4">
-                    <p className="text-xs font-bold text-[#665B53] uppercase tracking-wider">Processing Fee</p>
-                    <p className="text-2xl font-serif font-bold text-[#1C1814] mt-1">{REFUND_FEE_RATE * 100}%</p>
-                    <p className="text-xs text-[#665B53] mt-1">retained as service fee</p>
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex gap-3">
+                    <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                    <div className="text-sm text-amber-800">
+                      <p className="font-bold">Refund Waiting Rule</p>
+                      <p className="text-xs mt-1">Refunds can only be processed after the specified waiting period ({settingsWaitingDays} days) from the booking date. Refund amounts are calculated as: Deposit × Refund Rate.</p>
+                    </div>
                   </div>
-                </div>
-                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex gap-3">
-                  <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-                  <div className="text-sm text-amber-800">
-                    <p className="font-bold">Waiting Period: {REFUND_WAITING_DAYS} days</p>
-                    <p className="text-xs mt-1">Refunds can only be processed {REFUND_WAITING_DAYS} days after the original booking date. The refund button will appear automatically on eligible bookings.</p>
-                  </div>
-                </div>
-              </section>
+                </section>
 
-              <section className="bg-[#FFFDF9] border border-[#DECDBD] rounded-3xl p-6 space-y-4">
-                <h2 className="font-serif text-2xl font-bold">Admin Account</h2>
-                <div className="grid sm:grid-cols-2 gap-4">
-                  <div className="bg-[#F7F2EB] rounded-xl p-4">
-                    <p className="text-xs font-bold text-[#665B53] uppercase tracking-wider">Username</p>
-                    <p className="text-sm font-bold mt-1">{ADMIN_USERNAME}</p>
+                <section className="bg-[#E8F2E6] border border-[#B8D8B5] rounded-3xl p-5 text-sm text-[#35643A]">
+                  <h2 className="font-serif text-xl font-bold">Secure admin access</h2>
+                  <p className="mt-1 text-xs">Passwords are managed only in Firebase Authentication. This dashboard never stores or displays an administrator password.</p>
+                </section>
+
+                {settingsSaveMessage && (
+                  <div className={`p-4 rounded-xl text-sm font-bold flex gap-2 ${settingsSaveMessage.includes('Failed') ? 'bg-[#FCE8E3] text-[#8E3C29]' : 'bg-[#E8F2E6] text-[#35643A]'}`}>
+                    <CheckCircle2 className="w-4 h-4 mt-0.5" />
+                    {settingsSaveMessage}
                   </div>
-                  <div className="bg-[#F7F2EB] rounded-xl p-4">
-                    <p className="text-xs font-bold text-[#665B53] uppercase tracking-wider">Auth Method</p>
-                    <p className="text-sm font-bold mt-1">Session-based PIN</p>
-                  </div>
-                </div>
-                <p className="text-xs text-[#665B53]">To update credentials, modify the admin constants in the source code. Firebase Auth integration is recommended for production.</p>
-              </section>
+                )}
+
+                <button type="submit" className="min-h-12 w-full rounded-xl bg-[#403833] text-white font-bold hover:bg-[#2C2620] transition-all flex items-center justify-center gap-2">
+                  <Check className="w-4 h-4" /> Save settings
+                </button>
+              </form>
 
               <section className="bg-[#FFFDF9] border border-[#DECDBD] rounded-3xl p-6 space-y-4">
                 <h2 className="font-serif text-2xl font-bold">Firestore Database</h2>
@@ -1282,10 +1354,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   onClick={async () => {
                     if (!confirm('This will populate Firestore with default catalog data (services, stylists, gallery, page settings). Existing documents with the same IDs will be overwritten. Continue?')) return;
                     try {
-                      for (const service of MOCK_SERVICES) { await setDoc(doc(db, 'services', service.id), service); }
-                      for (const stylist of MOCK_STYLISTS) { await setDoc(doc(db, 'stylists', stylist.id), stylist); }
-                      for (const item of MOCK_GALLERY) { await setDoc(doc(db, 'gallery', item.id), item); }
-                      await setDoc(doc(db, 'settings', 'pageSettings'), DEFAULT_PAGE_SETTINGS);
+                      await adminRequest('/seed', { method: 'POST', body: JSON.stringify({ services: MOCK_SERVICES, stylists: MOCK_STYLISTS, gallery: MOCK_GALLERY, pageSettings: DEFAULT_PAGE_SETTINGS }) });
+                      onServicesChange(MOCK_SERVICES); onStylistsChange(MOCK_STYLISTS); onGalleryItemsChange(MOCK_GALLERY); onPageSettingsChange(DEFAULT_PAGE_SETTINGS);
                       alert('Default data seeded to Firestore successfully! The dashboard will update automatically.');
                     } catch (err) {
                       console.error(err);
@@ -1327,9 +1397,54 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               <label className="admin-field">Stylists Count (Number of stylists performing this style)
                 <input min="1" type="number" value={editingService.numberOfStylists || 1} onChange={e => setEditingService({ ...editingService, numberOfStylists: Number(e.target.value) })} />
               </label>
-              <label className="admin-field sm:col-span-2">Service Image Path / URL
-                <input placeholder="e.g. /media/gallery/some-pic.webp" value={editingService.image} onChange={e => setEditingService({ ...editingService, image: e.target.value })} />
-              </label>
+              <div className="admin-field sm:col-span-2 space-y-2">
+                <label className="block text-xs font-bold text-[#665B53] uppercase tracking-wider">Service Image</label>
+                <div className="flex gap-3 items-center">
+                  <img src={editingService.image} alt="Preview" className="w-16 h-16 rounded-xl object-cover border border-[#DECDBD]" onError={(e) => { e.currentTarget.src = '/media/gallery/DbkZiW1l7NZ.webp'; }} />
+                  <div className="flex-1 space-y-1.5">
+                    <input placeholder="Image URL / Path" value={editingService.image} onChange={e => setEditingService({ ...editingService, image: e.target.value })} className="w-full bg-white border border-[#DECDBD] rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#B88E39]" />
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        id="service-image-upload"
+                        className="sr-only"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          try {
+                            setEditingService({ ...editingService, image: await uploadImage(file) });
+                          } catch (err) {
+                            alert('Upload failed: ' + (err instanceof Error ? err.message : 'Unknown error'));
+                          }
+                        }}
+                      />
+                      <label htmlFor="service-image-upload" className="cursor-pointer bg-[#F7F2EB] hover:bg-[#F0E6D8] border border-[#DECDBD] text-[#2F2924] font-bold text-xs px-4 py-2 rounded-xl transition-all shadow-sm">
+                        Upload New Image
+                      </label>
+                      <span className="text-[10px] text-[#665B53]">Or choose from existing media below</span>
+                    </div>
+                  </div>
+                </div>
+                {mediaList.length > 0 && (
+                  <div className="border border-[#DECDBD] rounded-xl p-2 bg-[#F7F2EB]/50 max-h-24 overflow-y-auto mt-2">
+                    <div className="flex flex-wrap gap-1.5">
+                      {mediaList.filter(m => m.type === 'image').map(item => (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => setEditingService({ ...editingService, image: item.url })}
+                          className={`w-9 h-9 rounded-lg overflow-hidden border-2 transition-all shrink-0 ${
+                            editingService.image === item.url ? 'border-[#B88E39] scale-95 shadow-md' : 'border-transparent opacity-70 hover:opacity-100'
+                          }`}
+                        >
+                          <img src={item.url} className="w-full h-full object-cover" />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
               <label className="admin-field sm:col-span-2">Description
                 <textarea required rows={4} value={editingService.description} onChange={e => setEditingService({ ...editingService, description: e.target.value })} />
               </label>
@@ -1357,9 +1472,54 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               <label className="admin-field">Experience Years
                 <input required type="number" min="0" value={editingStylist.experienceYears} onChange={e => setEditingStylist({ ...editingStylist, experienceYears: Number(e.target.value) })} />
               </label>
-              <label className="admin-field sm:col-span-2">Photo Path / URL
-                <input placeholder="e.g. /media/kay-founder.webp" value={editingStylist.photo} onChange={e => setEditingStylist({ ...editingStylist, photo: e.target.value })} />
-              </label>
+              <div className="admin-field sm:col-span-2 space-y-2">
+                <label className="block text-xs font-bold text-[#665B53] uppercase tracking-wider">Stylist Photo</label>
+                <div className="flex gap-3 items-center">
+                  <img src={editingStylist.photo} alt="Preview" className="w-16 h-16 rounded-xl object-cover border border-[#DECDBD]" onError={(e) => { e.currentTarget.src = '/media/kay-founder.webp'; }} />
+                  <div className="flex-1 space-y-1.5">
+                    <input placeholder="Photo URL / Path" value={editingStylist.photo} onChange={e => setEditingStylist({ ...editingStylist, photo: e.target.value })} className="w-full bg-white border border-[#DECDBD] rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#B88E39]" />
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        id="stylist-photo-upload"
+                        className="sr-only"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          try {
+                            setEditingStylist({ ...editingStylist, photo: await uploadImage(file) });
+                          } catch (err) {
+                            alert('Upload failed: ' + (err instanceof Error ? err.message : 'Unknown error'));
+                          }
+                        }}
+                      />
+                      <label htmlFor="stylist-photo-upload" className="cursor-pointer bg-[#F7F2EB] hover:bg-[#F0E6D8] border border-[#DECDBD] text-[#2F2924] font-bold text-xs px-4 py-2 rounded-xl transition-all shadow-sm">
+                        Upload New Photo
+                      </label>
+                      <span className="text-[10px] text-[#665B53]">Or choose from existing media below</span>
+                    </div>
+                  </div>
+                </div>
+                {mediaList.length > 0 && (
+                  <div className="border border-[#DECDBD] rounded-xl p-2 bg-[#F7F2EB]/50 max-h-24 overflow-y-auto mt-2">
+                    <div className="flex flex-wrap gap-1.5">
+                      {mediaList.filter(m => m.type === 'image').map(item => (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => setEditingStylist({ ...editingStylist, photo: item.url })}
+                          className={`w-9 h-9 rounded-lg overflow-hidden border-2 transition-all shrink-0 ${
+                            editingStylist.photo === item.url ? 'border-[#B88E39] scale-95 shadow-md' : 'border-transparent opacity-70 hover:opacity-100'
+                          }`}
+                        >
+                          <img src={item.url} className="w-full h-full object-cover" />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
               <label className="admin-field sm:col-span-2">Specialties (comma separated)
                 <input required placeholder="e.g. Knotless Braids, Boho Goddess, Cornrows" value={stylistSpecialtiesStr} onChange={e => setStylistSpecialtiesStr(e.target.value)} />
               </label>
@@ -1395,9 +1555,54 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   {stylists.map(st => <option key={st.id} value={st.name}>{st.name}</option>)}
                 </select>
               </label>
-              <label className="admin-field sm:col-span-2">Primary Image URL
-                <input required placeholder="e.g. /media/gallery/some-pic.webp" value={editingGalleryItem.image} onChange={e => setEditingGalleryItem({ ...editingGalleryItem, image: e.target.value })} />
-              </label>
+              <div className="admin-field sm:col-span-2 space-y-2">
+                <label className="block text-xs font-bold text-[#665B53] uppercase tracking-wider">Primary Image</label>
+                <div className="flex gap-3 items-center">
+                  <img src={editingGalleryItem.image} alt="Preview" className="w-16 h-16 rounded-xl object-cover border border-[#DECDBD]" onError={(e) => { e.currentTarget.src = '/media/gallery/DbkZiW1l7NZ.webp'; }} />
+                  <div className="flex-1 space-y-1.5">
+                    <input required placeholder="Image URL / Path" value={editingGalleryItem.image} onChange={e => setEditingGalleryItem({ ...editingGalleryItem, image: e.target.value })} className="w-full bg-white border border-[#DECDBD] rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#B88E39]" />
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        id="gallery-image-upload"
+                        className="sr-only"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          try {
+                            setEditingGalleryItem({ ...editingGalleryItem, image: await uploadImage(file) });
+                          } catch (err) {
+                            alert('Upload failed: ' + (err instanceof Error ? err.message : 'Unknown error'));
+                          }
+                        }}
+                      />
+                      <label htmlFor="gallery-image-upload" className="cursor-pointer bg-[#F7F2EB] hover:bg-[#F0E6D8] border border-[#DECDBD] text-[#2F2924] font-bold text-xs px-4 py-2 rounded-xl transition-all shadow-sm">
+                        Upload New Image
+                      </label>
+                      <span className="text-[10px] text-[#665B53]">Or choose from existing media below</span>
+                    </div>
+                  </div>
+                </div>
+                {mediaList.length > 0 && (
+                  <div className="border border-[#DECDBD] rounded-xl p-2 bg-[#F7F2EB]/50 max-h-24 overflow-y-auto mt-2">
+                    <div className="flex flex-wrap gap-1.5">
+                      {mediaList.filter(m => m.type === 'image').map(item => (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => setEditingGalleryItem({ ...editingGalleryItem, image: item.url })}
+                          className={`w-9 h-9 rounded-lg overflow-hidden border-2 transition-all shrink-0 ${
+                            editingGalleryItem.image === item.url ? 'border-[#B88E39] scale-95 shadow-md' : 'border-transparent opacity-70 hover:opacity-100'
+                          }`}
+                        >
+                          <img src={item.url} className="w-full h-full object-cover" />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
               <label className="admin-field sm:col-span-2">Video URL (only if Category is Videos)
                 <input placeholder="e.g. https://assets.mixkit.co/..." value={editingGalleryItem.videoUrl} onChange={e => setEditingGalleryItem({ ...editingGalleryItem, videoUrl: e.target.value })} />
               </label>
@@ -1408,13 +1613,66 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   Include Before & After Comparison Photos
                 </label>
                 {editingGalleryItem.isBeforeAfter && (
-                  <div className="grid sm:grid-cols-2 gap-3 pt-2">
-                    <label className="admin-field">Before Image Path / URL
-                      <input required value={editingGalleryItem.beforeImage} onChange={e => setEditingGalleryItem({ ...editingGalleryItem, beforeImage: e.target.value })} />
-                    </label>
-                    <label className="admin-field">After Image Path / URL
-                      <input required value={editingGalleryItem.afterImage} onChange={e => setEditingGalleryItem({ ...editingGalleryItem, afterImage: e.target.value })} />
-                    </label>
+                  <div className="space-y-4 pt-2">
+                    <div className="space-y-2">
+                      <label className="block text-xs font-bold text-[#665B53] uppercase tracking-wider">Before Image</label>
+                      <div className="flex gap-3 items-center">
+                        <img src={editingGalleryItem.beforeImage} alt="Before Preview" className="w-12 h-12 rounded-lg object-cover border border-[#DECDBD]" onError={(e) => { e.currentTarget.src = '/media/gallery/DbkZiW1l7NZ.webp'; }} />
+                        <div className="flex-1 space-y-1">
+                          <input required placeholder="Before Image URL" value={editingGalleryItem.beforeImage} onChange={e => setEditingGalleryItem({ ...editingGalleryItem, beforeImage: e.target.value })} className="w-full bg-white border border-[#DECDBD] rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:border-[#B88E39]" />
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="file"
+                              accept="image/*"
+                              id="before-image-upload"
+                              className="sr-only"
+                              onChange={async (e) => {
+                                const file = e.target.files?.[0];
+                                if (!file) return;
+                                try {
+                                  setEditingGalleryItem({ ...editingGalleryItem, beforeImage: await uploadImage(file) });
+                                } catch (err) {
+                                  alert('Upload failed: ' + (err instanceof Error ? err.message : 'Unknown error'));
+                                }
+                              }}
+                            />
+                            <label htmlFor="before-image-upload" className="cursor-pointer bg-[#F7F2EB] hover:bg-[#F0E6D8] border border-[#DECDBD] text-[#2F2924] font-bold text-[10px] px-3 py-1 rounded-lg transition-all shadow-sm">
+                              Upload Before Image
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="block text-xs font-bold text-[#665B53] uppercase tracking-wider">After Image</label>
+                      <div className="flex gap-3 items-center">
+                        <img src={editingGalleryItem.afterImage} alt="After Preview" className="w-12 h-12 rounded-lg object-cover border border-[#DECDBD]" onError={(e) => { e.currentTarget.src = '/media/gallery/DbkZiW1l7NZ.webp'; }} />
+                        <div className="flex-1 space-y-1">
+                          <input required placeholder="After Image URL" value={editingGalleryItem.afterImage} onChange={e => setEditingGalleryItem({ ...editingGalleryItem, afterImage: e.target.value })} className="w-full bg-white border border-[#DECDBD] rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:border-[#B88E39]" />
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="file"
+                              accept="image/*"
+                              id="after-image-upload"
+                              className="sr-only"
+                              onChange={async (e) => {
+                                const file = e.target.files?.[0];
+                                if (!file) return;
+                                try {
+                                  setEditingGalleryItem({ ...editingGalleryItem, afterImage: await uploadImage(file) });
+                                } catch (err) {
+                                  alert('Upload failed: ' + (err instanceof Error ? err.message : 'Unknown error'));
+                                }
+                              }}
+                            />
+                            <label htmlFor="after-image-upload" className="cursor-pointer bg-[#F7F2EB] hover:bg-[#F0E6D8] border border-[#DECDBD] text-[#2F2924] font-bold text-[10px] px-3 py-1 rounded-lg transition-all shadow-sm">
+                              Upload After Image
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>

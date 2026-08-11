@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { collection, doc, onSnapshot, addDoc, QueryDocumentSnapshot } from 'firebase/firestore';
+import { collection, doc, onSnapshot, QueryDocumentSnapshot } from 'firebase/firestore';
 import { db } from './lib/firebase';
 
 import { Navbar } from './components/Navbar';
@@ -16,7 +16,7 @@ import { PrivacyPolicyView } from './views/PrivacyPolicyView';
 import { TermsOfServiceView } from './views/TermsOfServiceView';
 
 import { Service, Stylist, GalleryItem } from './types';
-import { MOCK_REVIEWS, MOCK_SERVICES, MOCK_STYLISTS, MOCK_GALLERY } from './data/mockData';
+import { MOCK_SERVICES, MOCK_STYLISTS, MOCK_GALLERY } from './data/mockData';
 
 /* ─── Firestore default page settings (used only as fallback if doc doesn't exist yet) ── */
 export const DEFAULT_PAGE_SETTINGS = {
@@ -103,12 +103,7 @@ export default function App() {
       }
     });
 
-    // 4. Bookings collection
-    const unsubBookings = onSnapshot(collection(db, 'bookings'), (snap) => {
-      setBookings(snap.docs.map((d) => docToObj<AdminBooking>(d)));
-    });
-
-    // 5. Page settings document (single doc)
+    // 4. Page settings document (single doc)
     const unsubSettings = onSnapshot(doc(db, 'settings', 'pageSettings'), (snap) => {
       if (snap.exists()) {
         const data = snap.data();
@@ -127,7 +122,6 @@ export default function App() {
       unsubServices();
       unsubStylists();
       unsubGallery();
-      unsubBookings();
       unsubSettings();
     };
   }, []);
@@ -156,20 +150,8 @@ export default function App() {
     return () => window.removeEventListener('hashchange', syncAdminRoute);
   }, []);
 
-  const handleBookingComplete = async (booking: AdminBooking) => {
-    try {
-      // Write new booking directly to Firestore — the onSnapshot listener will update local state
-      const { id, ...bookingData } = booking;
-      await addDoc(collection(db, 'bookings'), {
-        ...bookingData,
-        createdAt: new Date().toISOString(),
-      });
-    } catch (err) {
-      console.error('Failed to save booking to Firestore:', err);
-      // Fallback: at least add to local state
-      setBookings((current) => [booking, ...current]);
-    }
-  };
+  // Booking requests are created by the protected public API in BookingModal.
+  const handleBookingComplete = async (_booking: AdminBooking) => undefined;
 
   if (adminOpen) {
     return (
@@ -207,7 +189,6 @@ export default function App() {
         {activeSection === 'home' && (
           <HomeView
             services={services}
-            reviews={MOCK_REVIEWS}
             galleryItems={galleryItems}
             pageSettings={pageSettings}
             onOpenBooking={handleOpenBooking}
@@ -218,7 +199,6 @@ export default function App() {
         {activeSection === 'services' && (
           <ServicesView
             services={services}
-            reviews={MOCK_REVIEWS}
             pageSettings={pageSettings}
             onOpenBooking={handleOpenBooking}
             onNavigate={setActiveSection}

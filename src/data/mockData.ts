@@ -427,6 +427,7 @@ export const INITIAL_LOYALTY_ACCOUNT: LoyaltyAccount = {
       status: 'Confirmed',
       clientName: 'Zari Hassan',
       clientPhone: '+254 712 345 678',
+      durationMinutes: 180,
       notes: 'Please bring warm honey tone lace tint.'
     }
   ],
@@ -442,6 +443,7 @@ export const INITIAL_LOYALTY_ACCOUNT: LoyaltyAccount = {
       status: 'Completed',
       clientName: 'Zari Hassan',
       clientPhone: '+254 712 345 678',
+      durationMinutes: 240,
     }
   ],
   savedInspoIds: ['g1', 'g2', 'g6']

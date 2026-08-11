@@ -1,11 +1,12 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Star } from 'lucide-react';
 import { Service, Review } from '../types';
 import { useScrollReveal } from '../hooks/useScrollReveal';
+import { db } from '../lib/firebase';
+import { collection, onSnapshot } from 'firebase/firestore';
 
 interface ServicesViewProps {
   services: Service[];
-  reviews: Review[];
   pageSettings: any;
   onOpenBooking: (service?: Service) => void;
   onNavigate: (section: string) => void;
@@ -13,12 +14,20 @@ interface ServicesViewProps {
 
 export const ServicesView: React.FC<ServicesViewProps> = ({
   services,
-  reviews,
   pageSettings,
   onOpenBooking,
 }) => {
   const revealRef = useScrollReveal();
   const servicesSettings = pageSettings?.services || {};
+
+  // Load reviews from Firestore
+  const [reviews, setReviews] = useState<Review[]>([]);
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, 'reviews'), (snap) => {
+      setReviews(snap.docs.map(d => ({ id: d.id, ...d.data() } as Review)));
+    });
+    return () => unsub();
+  }, []);
 
   return (
     <div ref={revealRef} className="space-y-16 sm:space-y-24 pt-24 pb-16 animate-fade-in">

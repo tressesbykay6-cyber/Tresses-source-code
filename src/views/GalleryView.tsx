@@ -58,7 +58,7 @@ export const GalleryView: React.FC<GalleryViewProps> = ({ galleryItems, pageSett
       </header>
 
       <section aria-label="Featured video reel" className="reveal reveal-scale relative aspect-video rounded-3xl overflow-hidden border border-[#DECDBD] shadow-lg group bg-[#403833]">
-        <video ref={reelRef} autoPlay muted playsInline preload="metadata" onEnded={() => changeReel(1)} className="w-full h-full object-cover grayscale brightness-95 contrast-125">
+        <video ref={reelRef} autoPlay muted playsInline preload="metadata" onEnded={() => changeReel(1)} className="w-full h-full object-cover grayscale brightness-95 contrast-125" onError={(e) => { (e.currentTarget as HTMLVideoElement).style.display = 'none'; }}>
           <source src={reels[currentReel]} type="video/mp4" />
         </video>
         <div className="absolute inset-0 bg-gradient-to-t from-[#2F2924]/65 via-transparent to-[#2F2924]/15 pointer-events-none" />
@@ -85,20 +85,20 @@ export const GalleryView: React.FC<GalleryViewProps> = ({ galleryItems, pageSett
               {item.isBeforeAfter && item.beforeImage && item.afterImage ? (
                 <div className="w-full h-full flex relative">
                   <div className="w-1/2 h-full relative overflow-hidden border-r border-[#DECDBD]">
-                    <img src={item.beforeImage} alt="Before transformation" className="w-full h-full object-cover" />
+                    <img src={item.beforeImage} alt="Before transformation" className="w-full h-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/media/gallery/DbkZiW1l7NZ.webp'; }} />
                     <span className="absolute bottom-2 left-2 bg-black/60 text-white text-[9px] font-bold px-2 py-0.5 rounded-full">Before</span>
                   </div>
                   <div className="w-1/2 h-full relative overflow-hidden">
-                    <img src={item.afterImage} alt="After transformation" className="w-full h-full object-cover" />
+                    <img src={item.afterImage} alt="After transformation" className="w-full h-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/media/gallery/DbkZiW1l7NZ.webp'; }} />
                     <span className="absolute bottom-2 left-2 bg-[#B88E39]/90 text-white text-[9px] font-bold px-2 py-0.5 rounded-full">After</span>
                   </div>
                 </div>
               ) : motionSrc ? (
-                <video autoPlay muted loop playsInline preload="metadata" className="w-full h-full object-cover brightness-95 contrast-110 grayscale group-hover:scale-105 transition-transform duration-700" aria-label={`Monochrome motion study of Tresses by Kay style ${index + 1}`}>
+                <video autoPlay muted loop playsInline preload="metadata" className="w-full h-full object-cover brightness-95 contrast-110 grayscale group-hover:scale-105 transition-transform duration-700" aria-label={`Monochrome motion study of Tresses by Kay style ${index + 1}`} onError={(e) => { (e.currentTarget as HTMLVideoElement).style.display = 'none'; }}>
                   <source src={motionSrc} type="video/mp4" />
                 </video>
               ) : (
-                <img src={item.image} alt={item.title || `Tresses by Kay style ${index + 1}`} loading={index < 6 ? 'eager' : 'lazy'} decoding="async" className="w-full h-full object-cover brightness-[.96] contrast-105 saturate-[.94] group-hover:scale-[1.03] group-hover:brightness-100 transition-all duration-700" />
+                <img src={item.image} alt={item.title || `Tresses by Kay style ${index + 1}`} loading={index < 6 ? 'eager' : 'lazy'} decoding="async" className="w-full h-full object-cover brightness-[.96] contrast-105 saturate-[.94] group-hover:scale-[1.03] group-hover:brightness-100 transition-all duration-700" onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/media/gallery/DbkZiW1l7NZ.webp'; }} />
               )}
               {motionSrc && !item.isBeforeAfter && <span className="absolute top-3 left-3 rounded-full bg-[#2F2924]/75 px-2.5 py-1 text-[10px] uppercase tracking-wide text-white font-bold">Monochrome motion</span>}
               <div className="absolute inset-0 bg-gradient-to-t from-[#2F2924]/85 via-[#2F2924]/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-4">

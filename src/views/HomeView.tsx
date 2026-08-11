@@ -1,11 +1,10 @@
 import React from 'react';
 import { Calendar, MessageCircle, Sparkles } from 'lucide-react';
-import { Service, GalleryItem, Review } from '../types';
+import { Service, GalleryItem } from '../types';
 import { useScrollReveal } from '../hooks/useScrollReveal';
 
 interface HomeViewProps {
   services: Service[];
-  reviews: Review[];
   galleryItems: GalleryItem[];
   pageSettings: any;
   onOpenBooking: (service?: Service) => void;
@@ -33,6 +32,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
           loop
           playsInline
           className="absolute inset-0 w-full h-full object-cover -z-10 opacity-[0.38] brightness-90 contrast-125 sepia-[.10] scale-100 transition-transform duration-1000"
+          onError={(e) => { (e.currentTarget as HTMLVideoElement).style.display = 'none'; }}
         >
           <source src={homeSettings.heroVideoUrl || "/media/hero-intro.mp4"} type="video/mp4" />
         </video>

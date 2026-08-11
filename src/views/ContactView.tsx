@@ -1,10 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { MapPin, Phone, MessageCircle, Clock, Send, CheckCircle2, Star, Sparkles, Heart, Award, ShieldCheck, UserCheck, Mail } from 'lucide-react';
 import { Review } from '../types';
-import { MOCK_REVIEWS } from '../data/mockData';
 import { useScrollReveal } from '../hooks/useScrollReveal';
-import { db } from '../lib/firebase';
-import { collection, addDoc, onSnapshot, query, where } from 'firebase/firestore';
+import { publicRequest } from '../lib/api';
 
 interface ContactViewProps {
   pageSettings: any;
@@ -19,13 +17,14 @@ export const ContactView: React.FC<ContactViewProps> = ({ pageSettings }) => {
 
   const contactSettings = pageSettings?.contact || {};
 
-  // Listen to Firestore comments collection for those with admin replies
+  // Public APIs return only approved public content; unpublished messages stay private.
   useEffect(() => {
-    const unsub = onSnapshot(collection(db, 'comments'), (snap) => {
-      const allComments = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      setQaComments(allComments.filter((c: any) => c.adminReply));
-    });
-    return () => unsub();
+    publicRequest<any[]>('/comments').then(setQaComments).catch(() => setQaComments([]));
+  }, []);
+
+  // Listen to Firestore reviews collection
+  useEffect(() => {
+    publicRequest<Review[]>('/reviews').then((reviews) => setLocalReviews(reviews.sort((a, b) => (b.date > a.date ? 1 : -1)))).catch(() => setLocalReviews([]));
   }, []);
 
   // Client Review submission form state
@@ -34,19 +33,14 @@ export const ContactView: React.FC<ContactViewProps> = ({ pageSettings }) => {
   const [reviewService, setReviewService] = useState('HD Frontal Wig Install');
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewQuote, setReviewQuote] = useState('');
-  const [localReviews, setLocalReviews] = useState<Review[]>(MOCK_REVIEWS);
+  const [localReviews, setLocalReviews] = useState<Review[]>([]);
 
   const handleSubmitInquiry = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || !phone) return;
 
     try {
-      await addDoc(collection(db, 'comments'), {
-        bookingId: 'General Inquiry',
-        clientName: name,
-        message: message || 'Requested callback / consultation.',
-        date: new Date().toISOString().slice(0, 10),
-      });
+      await publicRequest('/inquiries', { method: 'POST', body: JSON.stringify({ clientName: name, clientPhone: phone, message }) });
     } catch (err) {
       console.error('Failed to save inquiry to Firestore:', err);
     }
@@ -63,27 +57,10 @@ export const ContactView: React.FC<ContactViewProps> = ({ pageSettings }) => {
   const handleSubmitReview = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!reviewerName || !reviewQuote) return;
-    
-    const newRev: Review = {
-      id: `rev-${Date.now()}`,
-      clientName: reviewerName,
-      serviceBooked: reviewService,
-      rating: reviewRating,
-      quote: reviewQuote,
-      date: 'Just now',
-      verified: true,
-    };
 
-    setLocalReviews([newRev, ...localReviews]);
-
-    // Also push to comments so admin can see and reply/approve reviews if they wish
+    // Save review to Firestore reviews collection
     try {
-      await addDoc(collection(db, 'comments'), {
-        bookingId: `Review: ${reviewService} (★${reviewRating})`,
-        clientName: reviewerName,
-        message: reviewQuote,
-        date: new Date().toISOString().slice(0, 10),
-      });
+      await publicRequest('/reviews', { method: 'POST', body: JSON.stringify({ clientName: reviewerName, serviceBooked: reviewService, rating: reviewRating, quote: reviewQuote }) });
     } catch (err) {
       console.error('Failed to save review to Firestore:', err);
     }
@@ -261,14 +238,25 @@ export const ContactView: React.FC<ContactViewProps> = ({ pageSettings }) => {
           {/* Map Frame */}
           <div className="bg-[#FFFDF9] rounded-3xl overflow-hidden border border-[#E5D7C0] aspect-[16/9] relative group shadow-sm">
             <iframe
-              title="JKUAT Towers Map Location"
-              src={contactSettings.mapsEmbedUrl || "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3988.817294436214!2d36.8202!3d-1.2847!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x182f10d7a6e76811%3A0x62955f13fa1458e3!2sJKUAT%20Towers%2C%20Kenyatta%20Ave%2C%20Nairobi!5e0!3m2!1sen!2ske!4v1700000000000!5m2!1sen!2ske"}
+              title="Directions to JKUAT Towers from Nairobi Posta"
+              src="https://www.google.com/maps/embed?pb=!1m28!1m12!1m3!1d3988.817!2d36.8202!3d-1.2847!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!4m13!3e0!4m5!1s0x182f10d5b1f2e7f7%3A0x39e2ba53c0412c0e!2sNairobi%20GPO%2C%20Kenyatta%20Ave%2C%20Nairobi!3m2!1d-1.2837!2d36.8195!4m5!1s0x182f10d7a6e76811%3A0x62955f13fa1458e3!2sJKUAT%20Towers%2C%20Kenyatta%20Ave%2C%20Nairobi!3m2!1d-1.2847!2d36.8213!5e0!3m2!1sen!2ske!4v1700000000000!5m2!1sen!2ske"
               className="w-full h-full border-0 group-hover:contrast-105 transition-all"
               loading="lazy"
+              allowFullScreen
+              referrerPolicy="no-referrer-when-downgrade"
             />
             <div className="absolute top-3 left-3 bg-[#FAF7F2]/95 text-[#1C1814] text-xs font-bold px-3.5 py-1.5 rounded-full border border-[#E5D7C0] shadow-md backdrop-blur-md flex items-center gap-1.5">
-              <span>📍 {contactSettings.address || "JKUAT Towers, Mezzanine M08"}</span>
+              <span>📍 Directions: Nairobi Posta → {contactSettings.address || "JKUAT Towers, Mezzanine M08"}</span>
             </div>
+            <a
+              href="https://www.google.com/maps/dir/Nairobi+GPO,+Kenyatta+Ave,+Nairobi/JKUAT+Towers,+Kenyatta+Ave,+Nairobi"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="absolute bottom-3 right-3 bg-[#1C1814]/90 text-[#FAF7F2] text-xs font-bold px-3.5 py-1.5 rounded-full border border-[#B88E39]/40 shadow-md backdrop-blur-md hover:bg-[#B88E39] transition-colors flex items-center gap-1.5"
+            >
+              <MapPin className="w-3.5 h-3.5" />
+              <span>Open in Google Maps</span>
+            </a>
           </div>
 
         </div>
@@ -369,8 +357,8 @@ export const ContactView: React.FC<ContactViewProps> = ({ pageSettings }) => {
                 <Star key={i} className="w-4 h-4 fill-current" />
               ))}
             </div>
-            <span className="text-xs font-bold text-[#1C1814]">4.9 out of 5.0</span>
-            <span className="text-[11px] text-[#5C5247]">(638+ reviews)</span>
+            <span className="text-xs font-bold text-[#1C1814]">{localReviews.length > 0 ? (localReviews.reduce((sum, r) => sum + r.rating, 0) / localReviews.length).toFixed(1) : '0.0'} out of 5.0</span>
+            <span className="text-[11px] text-[#5C5247]">({localReviews.length} review{localReviews.length !== 1 ? 's' : ''})</span>
           </div>
         </div>
 
@@ -483,21 +471,39 @@ export const ContactView: React.FC<ContactViewProps> = ({ pageSettings }) => {
 
               <div>
                 <label className="text-[11px] font-semibold text-[#1C1814] block mb-1">Rating</label>
-                <div className="flex gap-2">
-                  {[5, 4, 3, 2, 1].map((num) => (
+                <div className="flex gap-1 items-center">
+                  {[1, 2, 3, 4, 5].map((num) => (
                     <button
                       key={num}
                       type="button"
                       onClick={() => setReviewRating(num)}
-                      className={`px-3 py-1 rounded-lg text-xs font-bold border ${
-                        reviewRating === num
-                          ? 'bg-[#B88E39] text-[#FAF7F2] border-[#B88E39]'
-                          : 'bg-[#FAF7F2] text-[#5C5247] border-[#E5D7C0]'
-                      }`}
+                      onMouseEnter={(e) => {
+                        const stars = e.currentTarget.parentElement?.querySelectorAll('button');
+                        stars?.forEach((s, i) => {
+                          const icon = s.querySelector('svg');
+                          if (icon) icon.style.opacity = i < num ? '1' : '0.3';
+                        });
+                      }}
+                      onMouseLeave={(e) => {
+                        const stars = e.currentTarget.parentElement?.querySelectorAll('button');
+                        stars?.forEach((s, i) => {
+                          const icon = s.querySelector('svg');
+                          if (icon) icon.style.opacity = i < reviewRating ? '1' : '0.3';
+                        });
+                      }}
+                      className="p-1 transition-transform hover:scale-125"
                     >
-                      ★ {num}
+                      <Star
+                        className={`w-6 h-6 transition-all ${
+                          num <= reviewRating
+                            ? 'text-[#B88E39] fill-[#B88E39]'
+                            : 'text-[#E5D7C0] fill-transparent'
+                        }`}
+                        style={{ opacity: num <= reviewRating ? 1 : 0.3 }}
+                      />
                     </button>
                   ))}
+                  <span className="ml-2 text-xs font-bold text-[#1C1814]">{reviewRating}/5</span>
                 </div>
               </div>
 
