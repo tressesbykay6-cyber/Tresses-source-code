@@ -19,6 +19,7 @@ const SAFE_SETTING_IDS = new Set(['pageSettings', 'businessSettings']);
 const BOOKING_STATUSES = new Set(['Confirmed', 'Pending', 'Completed', 'Cancelled', 'Verified', 'Refunded']);
 const ID_PATTERN = /^[A-Za-z0-9_-]{1,128}$/;
 const allowedEmails = () => new Set((process.env.ADMIN_ALLOWED_EMAILS || '').split(',').map((email) => email.trim().toLowerCase()).filter(Boolean));
+const allowedUids = () => new Set((process.env.ADMIN_ALLOWED_UIDS || '').split(',').map((uid) => uid.trim()).filter((uid) => ID_PATTERN.test(uid)));
 const trustedOrigins = () => new Set((process.env.ADMIN_ORIGIN || 'https://tressesbykay-7fb99.web.app,https://tressesbykay-7fb99.firebaseapp.com').split(',').map((origin) => origin.trim().replace(/\/$/, '')).filter(Boolean));
 
 const upload = multer({
@@ -41,6 +42,9 @@ function plainText(value, maxLength, required = false) {
 }
 
 function validId(value) { return typeof value === 'string' && ID_PATTERN.test(value); }
+function isAdmin(decoded) {
+  return Boolean(decoded && ((decoded.email && allowedEmails().has(decoded.email.toLowerCase())) || allowedUids().has(decoded.uid)));
+}
 function publicAssetUrl(path) { return `https://storage.googleapis.com/${bucket.name}/${encodeURIComponent(path).replace(/%2F/g, '/')}`; }
 function sessionCookie(request) {
   const match = (request.get('cookie') || '').match(/(?:^|;\s*)__session=([^;]+)/);
@@ -57,8 +61,8 @@ async function authAdmin(request, response, next) {
     const token = bearer.startsWith('Bearer ') ? bearer.slice(7) : null;
     const session = sessionCookie(request);
     const decoded = session ? await admin.auth().verifySessionCookie(session, true) : token ? await admin.auth().verifyIdToken(token, true) : null;
-    if (!decoded?.email || !allowedEmails().size || !allowedEmails().has(decoded.email.toLowerCase())) return response.status(403).json({ error: 'Admin access is required.' });
-    request.admin = { uid: decoded.uid, email: decoded.email.toLowerCase() };
+    if (!isAdmin(decoded)) return response.status(403).json({ error: 'Admin access is required.' });
+    request.admin = { uid: decoded.uid, email: decoded.email?.toLowerCase() || decoded.uid };
     return next();
   } catch { return response.status(401).json({ error: 'Your admin session has expired.' }); }
 }
@@ -80,7 +84,7 @@ app.post('/session', requireTrustedOrigin, async (request, response) => {
     const idToken = request.body?.idToken;
     if (typeof idToken !== 'string' || idToken.length > 4096) return response.status(400).json({ error: 'An ID token is required.' });
     const decoded = await admin.auth().verifyIdToken(idToken, true);
-    if (!decoded.email || !allowedEmails().size || !allowedEmails().has(decoded.email.toLowerCase())) return response.status(403).json({ error: 'This account is not an administrator.' });
+    if (!isAdmin(decoded)) return response.status(403).json({ error: 'This account is not an administrator.' });
     const session = await admin.auth().createSessionCookie(idToken, { expiresIn: 8 * 60 * 60 * 1000 });
     response.cookie('__session', session, { httpOnly: true, secure: true, sameSite: 'strict', maxAge: 8 * 60 * 60 * 1000, path: '/api' });
     return response.status(204).end();

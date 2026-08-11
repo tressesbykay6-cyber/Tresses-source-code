@@ -126,12 +126,16 @@ const AdminLogin: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
     e.preventDefault();
     setError('');
     setSubmitting(true);
+    let firebaseAuthenticated = false;
     try {
       const credential = await signInWithEmailAndPassword(auth, email.trim(), passcode);
+      firebaseAuthenticated = true;
       await apiRequest('/session', { method: 'POST', body: JSON.stringify({ idToken: await credential.user.getIdToken(true) }) });
       onLogin();
     } catch {
-      setError('Sign-in was not accepted. Use an authorized Firebase Authentication account.');
+      setError(firebaseAuthenticated
+        ? 'Your Firebase account is valid, but the secure admin service is not deployed yet. Upgrade this Firebase project to Blaze, then deploy Functions.'
+        : 'Email or password was not accepted by Firebase Authentication. Reset the Firebase password and try again.');
     } finally {
       setSubmitting(false);
     }
