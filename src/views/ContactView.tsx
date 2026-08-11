@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { MapPin, Phone, MessageCircle, Clock, Send, CheckCircle2, Star, Sparkles, Heart, Award, ShieldCheck, UserCheck } from 'lucide-react';
+import { MapPin, Phone, MessageCircle, Clock, Send, CheckCircle2, Star, Sparkles, Heart, Award, ShieldCheck, UserCheck, Mail } from 'lucide-react';
 import { Review } from '../types';
 import { MOCK_REVIEWS } from '../data/mockData';
+import { useScrollReveal } from '../hooks/useScrollReveal';
 
 export const ContactView: React.FC = () => {
   const [formSubmitted, setFormSubmitted] = useState(false);
@@ -52,11 +53,13 @@ export const ContactView: React.FC = () => {
     }, 4000);
   };
 
+  const revealRef = useScrollReveal();
+
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-20 animate-fade-in">
+    <div ref={revealRef} className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-20 animate-fade-in">
       
       {/* 1. HERO PAGE TITLE */}
-      <div className="text-center space-y-3 max-w-2xl mx-auto">
+      <div className="reveal reveal-up text-center space-y-3 max-w-2xl mx-auto">
         <span className="text-xs uppercase tracking-widest text-[#B88E39] font-bold flex items-center justify-center gap-1.5">
           <Sparkles className="w-4 h-4" /> About Us • Contact • Client Reviews
         </span>
@@ -69,7 +72,7 @@ export const ContactView: React.FC = () => {
       </div>
 
       {/* 2. ABOUT US & ATELIER HERITAGE SECTION (Folded into Contact page) */}
-      <section className="bg-[#FFFDF9] border border-[#E5D7C0] rounded-3xl p-8 sm:p-12 shadow-sm relative overflow-hidden">
+      <section className="reveal reveal-up bg-[#FFFDF9] border border-[#E5D7C0] rounded-3xl p-8 sm:p-12 shadow-sm relative overflow-hidden">
         <div className="absolute -right-20 -top-20 w-80 h-80 bg-[#F8E2C2]/40 rounded-full blur-3xl pointer-events-none" />
         
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center relative z-10">
@@ -135,13 +138,13 @@ export const ContactView: React.FC = () => {
       </section>
 
       {/* 3. LOCATION & CONTACT FORM GRID */}
-      <section className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+      <section className="reveal reveal-up grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         
         {/* Left Column: Location, Direct Action Buttons & Hours Table (6 cols) */}
         <div className="lg:col-span-6 space-y-6">
           
           {/* Location Details Card */}
-          <div className="bg-[#FFFDF9] p-6 rounded-3xl border border-[#E5D7C0] shadow-sm space-y-4">
+          <div className="card-interactive bg-[#FFFDF9] p-6 rounded-3xl border border-[#E5D7C0] shadow-sm space-y-4">
             <div className="flex items-start gap-4">
               <div className="w-12 h-12 rounded-2xl bg-[#F8E2C2]/50 border border-[#B88E39] text-[#B88E39] flex items-center justify-center shrink-0">
                 <MapPin className="w-6 h-6" />
@@ -177,6 +180,14 @@ export const ContactView: React.FC = () => {
               >
                 <MessageCircle className="w-4 h-4" />
                 <span>WhatsApp Atelier Direct</span>
+              </a>
+
+              <a
+                href="mailto:trassesbykay6@gmail.com"
+                className="bg-[#FAF7F2] hover:bg-[#F8E2C2]/30 border border-[#E5D7C0] text-[#1C1814] p-3 rounded-2xl flex items-center justify-center gap-2 text-xs font-bold transition-all shadow-sm col-span-1 sm:col-span-2"
+              >
+                <Mail className="w-4 h-4 text-[#B88E39]" />
+                <span>Email: trassesbykay6@gmail.com</span>
               </a>
             </div>
           </div>

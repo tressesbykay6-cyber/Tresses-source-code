@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Calendar, ChevronLeft, ChevronRight, Play, Sparkles } from 'lucide-react';
 import galleryManifest from '../data/galleryManifest.json';
 import videoManifest from '../data/videoManifest.json';
+import { useScrollReveal } from '../hooks/useScrollReveal';
 
 interface GalleryViewProps {
   onOpenBooking?: () => void;
@@ -10,7 +11,7 @@ interface GalleryViewProps {
 export const GalleryView: React.FC<GalleryViewProps> = ({ onOpenBooking }) => {
   const images = galleryManifest as string[];
   const reels = videoManifest as string[];
-const [visibleCount, setVisibleCount] = useState(24);
+  const [visibleCount, setVisibleCount] = useState(24);
   const [currentReel, setCurrentReel] = useState(0);
   const reelRef = useRef<HTMLVideoElement>(null);
   const featuredImageMotion = [
@@ -34,16 +35,18 @@ const [visibleCount, setVisibleCount] = useState(24);
     return pattern === 0 || pattern === 5 ? 'col-span-2 row-span-2' : pattern === 3 || pattern === 9 ? 'col-span-2' : '';
   };
 
+  const revealRef = useScrollReveal();
+
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 space-y-14 animate-fade-in">
-      <header className="text-center space-y-3 max-w-2xl mx-auto">
+    <div ref={revealRef} className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 space-y-14 animate-fade-in">
+      <header className="reveal reveal-up text-center space-y-3 max-w-2xl mx-auto">
         <span className="eyebrow"><Sparkles className="w-4 h-4" /> Visual Lookbook</span>
         <h1 className="font-serif text-4xl sm:text-5xl font-bold text-[#2F2924]">The Style Grid</h1>
-        <p className="text-sm text-[#665B53] leading-relaxed">A curated, fast-loading collection of real Tresses by Kay transformations. Every image is delivered as modern WebP; every reel is reduced for mobile playback.</p>
+        <p className="text-sm text-[#665B53] leading-relaxed font-light">A curated, fast-loading collection of real Tresses by Kay transformations. Every image is delivered as modern WebP; every reel is reduced for mobile playback.</p>
       </header>
 
-      <section aria-label="Featured video reel" className="relative aspect-video rounded-3xl overflow-hidden border border-[#DECDBD] shadow-lg group bg-[#403833]">
-        <video ref={reelRef} autoPlay muted playsInline preload="metadata" onEnded={() => changeReel(1)} className="w-full h-full object-cover grayscale brightness-95 contrast-110">
+      <section aria-label="Featured video reel" className="reveal reveal-scale relative aspect-video rounded-3xl overflow-hidden border border-[#DECDBD] shadow-lg group bg-[#403833]">
+        <video ref={reelRef} autoPlay muted playsInline preload="metadata" onEnded={() => changeReel(1)} className="w-full h-full object-cover grayscale brightness-95 contrast-125">
           <source src={reels[currentReel]} type="video/mp4" />
         </video>
         <div className="absolute inset-0 bg-gradient-to-t from-[#2F2924]/65 via-transparent to-[#2F2924]/15 pointer-events-none" />
@@ -54,8 +57,8 @@ const [visibleCount, setVisibleCount] = useState(24);
         </div>
       </section>
 
-      <section aria-labelledby="gallery-grid-title">
-        <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
+      <section aria-labelledby="gallery-grid-title" className="space-y-6">
+        <div className="reveal reveal-up flex flex-wrap items-end justify-between gap-3">
           <div>
             <span className="eyebrow">The work</span>
             <h2 id="gallery-grid-title" className="font-serif text-3xl font-bold text-[#2F2924] mt-2">Cinematic stills</h2>
@@ -66,13 +69,13 @@ const [visibleCount, setVisibleCount] = useState(24);
           {images.slice(0, visibleCount).map((src, index) => {
             const motionSrc = featuredImageMotion[index];
             return (
-            <article key={src} className={`group relative rounded-2xl overflow-hidden border border-[#DECDBD] bg-[#FFFDF9] shadow-sm hover:shadow-lg transition-all duration-300 ${gridClass(index)}`}>
+            <article key={src} className={`reveal reveal-up reveal-delay-${(index % 4) + 1} group relative rounded-2xl overflow-hidden border border-[#DECDBD] bg-[#FFFDF9] shadow-sm hover:shadow-lg transition-all duration-300 ${gridClass(index)}`}>
               {motionSrc ? (
                 <video autoPlay muted loop playsInline preload="metadata" className="w-full h-full object-cover brightness-95 contrast-110 grayscale group-hover:scale-105 transition-transform duration-700" aria-label={`Monochrome motion study of Tresses by Kay style ${index + 1}`}>
                   <source src={motionSrc} type="video/mp4" />
                 </video>
               ) : (
-                <img src={src} alt={`Tresses by Kay style ${index + 1}`} loading={index < 6 ? 'eager' : 'lazy'} decoding="async" className="w-full h-full object-cover brightness-[.96] contrast-105 saturate-[.94] group-hover:scale-105 group-hover:brightness-100 transition-all duration-700" />
+                <img src={src} alt={`Tresses by Kay style ${index + 1}`} loading={index < 6 ? 'eager' : 'lazy'} decoding="async" className="w-full h-full object-cover brightness-[.96] contrast-105 saturate-[.94] group-hover:scale-[1.03] group-hover:brightness-100 transition-all duration-700" />
               )}
               {motionSrc && <span className="absolute top-3 left-3 rounded-full bg-[#2F2924]/75 px-2.5 py-1 text-[10px] uppercase tracking-wide text-white font-bold">Monochrome motion</span>}
               <div className="absolute inset-0 bg-gradient-to-t from-[#2F2924]/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-4">

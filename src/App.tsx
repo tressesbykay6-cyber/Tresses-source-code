@@ -9,6 +9,8 @@ import { ServicesView } from './views/ServicesView';
 import { GalleryView } from './views/GalleryView';
 import { ContactView } from './views/ContactView';
 import { AdminBooking, AdminDashboard } from './views/AdminDashboard';
+import { PrivacyPolicyView } from './views/PrivacyPolicyView';
+import { TermsOfServiceView } from './views/TermsOfServiceView';
 
 import { Service } from './types';
 import { MOCK_SERVICES, MOCK_GALLERY, MOCK_REVIEWS } from './data/mockData';
@@ -118,6 +120,14 @@ export default function App() {
 
         {activeSection === 'contact' && (
           <ContactView />
+        )}
+
+        {activeSection === 'privacy' && (
+          <PrivacyPolicyView />
+        )}
+
+        {activeSection === 'terms' && (
+          <TermsOfServiceView />
         )}
       </main>
 

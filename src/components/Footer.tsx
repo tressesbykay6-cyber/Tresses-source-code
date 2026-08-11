@@ -1,5 +1,5 @@
 import React from 'react';
-import { MapPin, Phone, Clock, Instagram, Heart } from 'lucide-react';
+import { MapPin, Phone, Clock, Instagram, Heart, Mail } from 'lucide-react';
 
 interface FooterProps {
   setActiveSection: (section: string) => void;
@@ -109,6 +109,14 @@ export const Footer: React.FC<FooterProps> = ({ setActiveSection, onOpenBooking 
             <span className="font-bold text-[#1C1814]">+254 011 883 1488</span>
           </a>
 
+          <a
+            href="mailto:trassesbykay6@gmail.com"
+            className="flex items-center gap-3 text-sm hover:text-[#B88E39] transition-colors bg-[#FAF7F2] p-3 rounded-2xl border border-[#E5D7C0]"
+          >
+            <Mail className="w-4 h-4 text-[#B88E39]" />
+            <span className="font-medium text-[#1c1814] break-all">trassesbykay6@gmail.com</span>
+          </a>
+
           <button
             onClick={onOpenBooking}
             className="w-full bg-[#1C1814] hover:bg-[#2C2620] text-[#FAF7F2] font-semibold text-sm py-3 px-6 rounded-full transition-all shadow-md"
@@ -121,6 +129,10 @@ export const Footer: React.FC<FooterProps> = ({ setActiveSection, onOpenBooking 
 
       <div className="max-w-7xl mx-auto mt-12 pt-8 border-t border-[#E5D7C0] flex flex-col sm:flex-row items-center justify-between text-xs text-[#8C8071] gap-4">
         <p>© {new Date().getFullYear()} Tresses by Kay. All rights reserved.</p>
+        <div className="flex gap-4">
+          <button onClick={() => { setActiveSection('privacy'); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="hover:underline hover:text-[#B88E39]">Privacy Policy</button>
+          <button onClick={() => { setActiveSection('terms'); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="hover:underline hover:text-[#B88E39]">Terms of Service</button>
+        </div>
         <p className="flex items-center gap-1">
           Crafted with <Heart className="w-3.5 h-3.5 text-[#B88E39] fill-current" /> for Nairobi’s finest crown.
         </p>

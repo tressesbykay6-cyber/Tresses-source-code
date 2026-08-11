@@ -1,6 +1,7 @@
 import React from 'react';
-import { ArrowRight, Star } from 'lucide-react';
+import { Star } from 'lucide-react';
 import { Service, Review } from '../types';
+import { useScrollReveal } from '../hooks/useScrollReveal';
 
 interface ServicesViewProps {
   services: Service[];
@@ -13,18 +14,19 @@ export const ServicesView: React.FC<ServicesViewProps> = ({
   services,
   reviews,
   onOpenBooking,
-  onNavigate,
 }) => {
+  const revealRef = useScrollReveal();
+
   return (
-    <div className="space-y-16 sm:space-y-24 animate-fade-in pt-24 pb-16">
+    <div ref={revealRef} className="space-y-16 sm:space-y-24 pt-24 pb-16 animate-fade-in">
       
       {/* PAGE HEADER */}
-      <section className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-4">
+      <section className="reveal reveal-up max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-4">
         <span className="text-xs uppercase tracking-widest text-[#B88E39] font-bold">The Menu</span>
         <h1 className="font-serif text-4xl sm:text-5xl font-bold text-[#1C1814]">
           Curated Atelier Services
         </h1>
-        <p className="text-sm text-[#5C5247] max-w-xl mx-auto">
+        <p className="text-sm text-[#5C5247] max-w-xl mx-auto font-light">
           From precise knotless braids to flawless HD wig installs, discover the signature transformations crafted by Kay.
         </p>
       </section>
@@ -32,16 +34,16 @@ export const ServicesView: React.FC<ServicesViewProps> = ({
       {/* POPULAR SERVICES CATALOG HIGHLIGHT */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {services.map((service) => (
+          {services.map((service, index) => (
             <div
               key={service.id}
-              className="bg-[#FFFDF9] rounded-3xl overflow-hidden border border-[#E5D7C0] hover:border-[#B88E39]/60 transition-all duration-300 group flex flex-col justify-between shadow-sm hover:shadow-md"
+              className={`reveal reveal-up reveal-delay-${(index % 3) + 1} card-interactive bg-[#FFFDF9] rounded-3xl overflow-hidden border border-[#E5D7C0] transition-all duration-300 group flex flex-col justify-between shadow-sm`}
             >
               <div className="relative h-56 overflow-hidden">
                 <img
                   src={service.image}
                   alt={service.name}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500"
                 />
                 <span className="absolute top-3 left-3 bg-[#FFFDF9]/90 text-[#B88E39] text-[11px] font-bold px-3 py-1 rounded-full border border-[#E5D7C0] backdrop-blur-md shadow-sm">
                   {service.category}
@@ -71,7 +73,7 @@ export const ServicesView: React.FC<ServicesViewProps> = ({
 
                   <button
                     onClick={() => onOpenBooking(service)}
-                    className="bg-[#1C1814] hover:bg-[#2C2620] text-[#FAF7F2] text-xs font-bold px-5 py-2.5 rounded-full transition-all shadow-sm"
+                    className="bg-[#1C1814] hover:bg-[#2C2620] hover:scale-[1.04] text-[#FAF7F2] text-xs font-bold px-5 py-2.5 rounded-full transition-all shadow-sm active:scale-95"
                   >
                     Book this
                   </button>
@@ -84,7 +86,7 @@ export const ServicesView: React.FC<ServicesViewProps> = ({
 
       {/* CLIENT TESTIMONIAL PREVIEW */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-10 gap-3">
+        <div className="reveal reveal-up flex flex-col sm:flex-row sm:items-end justify-between mb-10 gap-3">
           <div>
             <span className="text-xs uppercase tracking-widest text-[#B88E39] font-bold">Client Reviews</span>
             <h2 className="font-serif text-3xl font-bold text-[#1C1814] mt-1">
@@ -94,10 +96,10 @@ export const ServicesView: React.FC<ServicesViewProps> = ({
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {reviews.map((rev) => (
+          {reviews.map((rev, index) => (
             <div
               key={rev.id}
-              className="bg-[#FFFDF9] p-6 rounded-3xl border border-[#E5D7C0] shadow-sm flex flex-col justify-between space-y-4"
+              className={`reveal reveal-scale reveal-delay-${(index % 2) + 1} card-interactive bg-[#FFFDF9] p-6 rounded-3xl border border-[#E5D7C0] shadow-sm flex flex-col justify-between space-y-4`}
             >
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
