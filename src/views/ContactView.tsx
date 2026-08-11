@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { MapPin, Phone, MessageCircle, Clock, Send, CheckCircle2, Star, Sparkles, Heart, Award, ShieldCheck, UserCheck, Mail } from 'lucide-react';
 import { Review } from '../types';
 import { MOCK_REVIEWS } from '../data/mockData';
@@ -9,6 +9,22 @@ export const ContactView: React.FC = () => {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [message, setMessage] = useState('');
+  const [qaComments, setQaComments] = useState<any[]>([]);
+
+  useEffect(() => {
+    const loadComments = () => {
+      try {
+        const comments = JSON.parse(localStorage.getItem('tresses-comments') || '[]');
+        // Filter to only those with admin replies
+        setQaComments(comments.filter((c: any) => c.adminReply));
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    loadComments();
+    window.addEventListener('storage', loadComments);
+    return () => window.removeEventListener('storage', loadComments);
+  }, []);
 
   // Client Review submission form state
   const [reviewSubmitted, setReviewSubmitted] = useState(false);
@@ -21,6 +37,24 @@ export const ContactView: React.FC = () => {
   const handleSubmitInquiry = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || !phone) return;
+
+    try {
+      const existing = JSON.parse(localStorage.getItem('tresses-comments') || '[]');
+      const newComment = {
+        id: `comment-${Date.now()}`,
+        bookingId: 'General Inquiry',
+        clientName: name,
+        message: message || 'Requested callback / consultation.',
+        date: new Date().toISOString().slice(0, 10),
+      };
+      localStorage.setItem('tresses-comments', JSON.stringify([newComment, ...existing]));
+      
+      // Also dispatch storage event to notify other tabs/components if needed
+      window.dispatchEvent(new Event('storage'));
+    } catch (err) {
+      console.error(err);
+    }
+
     setFormSubmitted(true);
     setTimeout(() => {
       setFormSubmitted(false);
@@ -45,6 +79,23 @@ export const ContactView: React.FC = () => {
     };
 
     setLocalReviews([newRev, ...localReviews]);
+
+    // Also push to comments so admin can see and reply/approve reviews if they wish
+    try {
+      const existing = JSON.parse(localStorage.getItem('tresses-comments') || '[]');
+      const newComment = {
+        id: `comment-rev-${Date.now()}`,
+        bookingId: `Review: ${reviewService} (★${reviewRating})`,
+        clientName: reviewerName,
+        message: reviewQuote,
+        date: new Date().toISOString().slice(0, 10),
+      };
+      localStorage.setItem('tresses-comments', JSON.stringify([newComment, ...existing]));
+      window.dispatchEvent(new Event('storage'));
+    } catch (err) {
+      console.error(err);
+    }
+
     setReviewSubmitted(true);
     setTimeout(() => {
       setReviewSubmitted(false);
@@ -365,6 +416,35 @@ export const ContactView: React.FC = () => {
             </div>
           ))}
         </div>
+
+        {/* Q&A / Inquiry replies board */}
+        {qaComments.length > 0 && (
+          <div className="bg-[#FFFDF9] p-8 rounded-3xl border border-[#E5D7C0] shadow-sm max-w-2xl mx-auto space-y-6">
+            <div className="text-center space-y-1">
+              <h3 className="font-serif text-xl font-bold text-[#1C1814] flex items-center justify-center gap-2">
+                <MessageCircle className="w-5 h-5 text-[#B88E39]" /> Atelier Public Q&A
+              </h3>
+              <p className="text-xs text-[#5C5247]">Answers to questions and service inquiries from Kay</p>
+            </div>
+            <div className="space-y-4">
+              {qaComments.map((comment) => (
+                <div key={comment.id} className="border-b border-[#E5D7C0]/60 last:border-0 pb-4 last:pb-0 space-y-2">
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="font-bold text-[#1C1814]">{comment.clientName}</span>
+                    <span className="text-[#8C8071]">{comment.date}</span>
+                  </div>
+                  <p className="text-xs text-[#5C5247] italic">"{comment.message}"</p>
+                  <div className="bg-[#FAF7F2] border-l-2 border-[#B88E39] p-3 rounded-r-xl text-xs space-y-1">
+                    <p className="font-bold text-[#1C1814] flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-[#B88E39]" /> Kay's Reply
+                    </p>
+                    <p className="text-[#5C5247]">{comment.adminReply}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Leave a Review Form */}
         <div className="bg-[#FFFDF9] p-8 rounded-3xl border border-[#E5D7C0] shadow-sm max-w-2xl mx-auto space-y-4">
