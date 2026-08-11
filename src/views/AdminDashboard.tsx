@@ -12,6 +12,10 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, LineChart, Line, CartesianGrid, Legend,
 } from 'recharts';
+import { db } from '../lib/firebase';
+import { collection, doc, setDoc, addDoc, deleteDoc, updateDoc, onSnapshot } from 'firebase/firestore';
+import { MOCK_SERVICES, MOCK_GALLERY, MOCK_STYLISTS } from '../data/mockData';
+import { DEFAULT_PAGE_SETTINGS } from '../App';
 
 /* ─── Types ──────────────────────────────────────────────────── */
 
@@ -271,11 +275,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setLocalContactSettings(pageSettings.contact);
   }, [pageSettings]);
 
-  // Comments from localStorage
-  const [comments, setComments] = useState<ClientComment[]>(() => {
-    try { return JSON.parse(localStorage.getItem('tresses-comments') || '[]'); } catch { return []; }
-  });
-  useEffect(() => { localStorage.setItem('tresses-comments', JSON.stringify(comments)); }, [comments]);
+  // Comments from Firestore
+  const [comments, setComments] = useState<ClientComment[]>([]);
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, 'comments'), (snap) => {
+      setComments(snap.docs.map(d => ({ id: d.id, ...d.data() } as ClientComment)));
+    });
+    return () => unsub();
+  }, []);
 
   /* ─── Computed KPIs ───────────────────────────────── */
   const pendingCount = bookings.filter(b => b.status === 'Pending').length;
@@ -345,58 +352,50 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   }, [bookings, statusFilter, searchQuery]);
 
   /* ─── Actions ─────────────────────────────────────── */
-  const updateStatus = (id: string, status: AdminBooking['status']) => {
-    onBookingsChange(bookings.map(b => {
-      if (b.id !== id) return b;
-      const updates: Partial<AdminBooking> = { status };
-      if (status === 'Confirmed') updates.depositPaid = b.depositPaid || Math.round(b.totalPrice * 0.3); // Record deposit paid when approved
-      if (status === 'Verified') updates.verifiedAt = new Date().toISOString();
-      if (status === 'Refunded') updates.refundAmount = Math.round(b.depositPaid * REFUND_RATE);
-      return { ...b, ...updates };
-    }));
+  const updateStatus = async (id: string, status: AdminBooking['status']) => {
+    const b = bookings.find(bk => bk.id === id);
+    if (!b) return;
+    const updates: any = { status };
+    if (status === 'Confirmed') updates.depositPaid = b.depositPaid || Math.round(b.totalPrice * 0.3);
+    if (status === 'Verified') updates.verifiedAt = new Date().toISOString();
+    if (status === 'Refunded') updates.refundAmount = Math.round(b.depositPaid * REFUND_RATE);
+    try { await updateDoc(doc(db, 'bookings', id), updates); } catch (err) { console.error(err); }
   };
 
-  const deleteBooking = (id: string) => {
+  const deleteBooking = async (id: string) => {
     if (confirm('Are you sure you want to permanently delete this booking?')) {
-      onBookingsChange(bookings.filter(b => b.id !== id));
+      try { await deleteDoc(doc(db, 'bookings', id)); } catch (err) { console.error(err); }
     }
   };
 
-  const addAdminComment = (id: string) => {
+  const addAdminComment = async (id: string) => {
     const comment = adminCommentInput[id]?.trim();
     if (!comment) return;
-    onBookingsChange(bookings.map(b => b.id === id ? { ...b, adminComment: comment } : b));
+    try { await updateDoc(doc(db, 'bookings', id), { adminComment: comment }); } catch (err) { console.error(err); }
     setAdminCommentInput(prev => ({ ...prev, [id]: '' }));
   };
 
-  const replyToComment = (commentId: string) => {
+  const replyToComment = async (commentId: string) => {
     const reply = commentReply[commentId]?.trim();
     if (!reply) return;
-    setComments(prev => prev.map(c => c.id === commentId ? { ...c, adminReply: reply, adminReplyDate: new Date().toISOString().slice(0, 10) } : c));
+    try { await updateDoc(doc(db, 'comments', commentId), { adminReply: reply, adminReplyDate: new Date().toISOString().slice(0, 10) }); } catch (err) { console.error(err); }
     setCommentReply(prev => ({ ...prev, [commentId]: '' }));
   };
 
   /* ─── Stylists CRUD ───────────────────────────────── */
-  const saveStylist = (e: FormEvent<HTMLFormElement>) => {
+  const saveStylist = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!editingStylist || !editingStylist.name.trim()) return;
     const specialties = stylistSpecialtiesStr.split(',').map(s => s.trim()).filter(Boolean);
-    const nextStylist = {
-      ...editingStylist,
-      id: editingStylist.id || `stylist-${Date.now()}`,
-      specialties
-    };
-    if (editingStylist.id) {
-      onStylistsChange(stylists.map(s => s.id === editingStylist.id ? nextStylist : s));
-    } else {
-      onStylistsChange([...stylists, nextStylist]);
-    }
+    const stylistId = editingStylist.id || `stylist-${Date.now()}`;
+    const nextStylist = { ...editingStylist, id: stylistId, specialties };
+    try { await setDoc(doc(db, 'stylists', stylistId), nextStylist); } catch (err) { console.error(err); }
     setEditingStylist(null);
   };
 
-  const deleteStylist = (id: string) => {
+  const deleteStylist = async (id: string) => {
     if (confirm('Are you sure you want to delete this stylist?')) {
-      onStylistsChange(stylists.filter(s => s.id !== id));
+      try { await deleteDoc(doc(db, 'stylists', id)); } catch (err) { console.error(err); }
     }
   };
 
@@ -406,53 +405,47 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   };
 
   /* ─── Gallery CRUD ────────────────────────────────── */
-  const saveGalleryItem = (e: FormEvent<HTMLFormElement>) => {
+  const saveGalleryItem = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!editingGalleryItem || !editingGalleryItem.title.trim()) return;
-    const nextItem = {
-      ...editingGalleryItem,
-      id: editingGalleryItem.id || `gallery-${Date.now()}`
-    };
-    if (editingGalleryItem.id) {
-      onGalleryItemsChange(galleryItems.map(item => item.id === editingGalleryItem.id ? nextItem : item));
-    } else {
-      onGalleryItemsChange([nextItem, ...galleryItems]);
-    }
+    const itemId = editingGalleryItem.id || `gallery-${Date.now()}`;
+    const nextItem = { ...editingGalleryItem, id: itemId };
+    try { await setDoc(doc(db, 'gallery', itemId), nextItem); } catch (err) { console.error(err); }
     setEditingGalleryItem(null);
   };
 
-  const deleteGalleryItem = (id: string) => {
+  const deleteGalleryItem = async (id: string) => {
     if (confirm('Are you sure you want to delete this Lookbook item?')) {
-      onGalleryItemsChange(galleryItems.filter(item => item.id !== id));
+      try { await deleteDoc(doc(db, 'gallery', id)); } catch (err) { console.error(err); }
     }
   };
 
   /* ─── Page Settings CMS ───────────────────────────── */
-  const savePageChanges = (pageKey: 'home' | 'services' | 'gallery' | 'contact') => {
+  const savePageChanges = async (pageKey: 'home' | 'services' | 'gallery' | 'contact') => {
     let targetSettings = localHomeSettings;
     if (pageKey === 'services') targetSettings = localServicesSettings;
     if (pageKey === 'gallery') targetSettings = localGallerySettings;
     if (pageKey === 'contact') targetSettings = localContactSettings;
 
-    onPageSettingsChange({
-      ...pageSettings,
-      [pageKey]: targetSettings
-    });
+    try {
+      await setDoc(doc(db, 'settings', 'pageSettings'), { ...pageSettings, [pageKey]: targetSettings });
+    } catch (err) { console.error(err); }
     setEditingPage(null);
     alert(`${pageKey.charAt(0).toUpperCase() + pageKey.slice(1)} page content updated successfully!`);
   };
 
   /* ─── Service Edit CRUD ───────────────────────────── */
-  const saveService = (event: FormEvent<HTMLFormElement>) => {
+  const saveService = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!editingService || !editingService.name.trim() || !editingService.description.trim()) return;
     const durationLabel = editingService.durationMinutes >= 60 ? `${editingService.durationMinutes / 60} hr${editingService.durationMinutes === 60 ? '' : 's'}` : `${editingService.durationMinutes} mins`;
-    const next = { ...editingService, id: editingService.id || `service-${Date.now()}`, durationLabel, depositAmount: Math.round(editingService.price * 0.3) };
-    onServicesChange(editingService.id ? services.map(s => s.id === editingService.id ? next : s) : [next, ...services]);
+    const serviceId = editingService.id || `service-${Date.now()}`;
+    const next = { ...editingService, id: serviceId, durationLabel, depositAmount: Math.round(editingService.price * 0.3) };
+    try { await setDoc(doc(db, 'services', serviceId), next); } catch (err) { console.error(err); }
     setEditingService(null);
   };
 
-  const removeService = (id: string) => onServicesChange(services.filter(s => s.id !== id));
+  const removeService = async (id: string) => { try { await deleteDoc(doc(db, 'services', id)); } catch (err) { console.error(err); } };
 
   const selectUpload = async (file: File | undefined) => {
     if (!file) return;
@@ -1186,6 +1179,50 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   </div>
                 </div>
                 <p className="text-xs text-[#665B53]">To update credentials, modify the admin constants in the source code. Firebase Auth integration is recommended for production.</p>
+              </section>
+
+              <section className="bg-[#FFFDF9] border border-[#DECDBD] rounded-3xl p-6 space-y-4">
+                <h2 className="font-serif text-2xl font-bold">Firestore Database</h2>
+                <p className="text-xs text-[#665B53]">
+                  All data (services, stylists, gallery, bookings, page settings, comments) is stored in Cloud Firestore and syncs in real-time across all devices.
+                </p>
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div className="bg-[#F7F2EB] rounded-xl p-4">
+                    <p className="text-xs font-bold text-[#665B53] uppercase tracking-wider">Services</p>
+                    <p className="text-2xl font-serif font-bold text-[#B88E39] mt-1">{services.length}</p>
+                  </div>
+                  <div className="bg-[#F7F2EB] rounded-xl p-4">
+                    <p className="text-xs font-bold text-[#665B53] uppercase tracking-wider">Stylists</p>
+                    <p className="text-2xl font-serif font-bold text-[#B88E39] mt-1">{stylists.length}</p>
+                  </div>
+                  <div className="bg-[#F7F2EB] rounded-xl p-4">
+                    <p className="text-xs font-bold text-[#665B53] uppercase tracking-wider">Gallery Items</p>
+                    <p className="text-2xl font-serif font-bold text-[#B88E39] mt-1">{galleryItems.length}</p>
+                  </div>
+                  <div className="bg-[#F7F2EB] rounded-xl p-4">
+                    <p className="text-xs font-bold text-[#665B53] uppercase tracking-wider">Bookings</p>
+                    <p className="text-2xl font-serif font-bold text-[#B88E39] mt-1">{bookings.length}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={async () => {
+                    if (!confirm('This will populate Firestore with default catalog data (services, stylists, gallery, page settings). Existing documents with the same IDs will be overwritten. Continue?')) return;
+                    try {
+                      for (const service of MOCK_SERVICES) { await setDoc(doc(db, 'services', service.id), service); }
+                      for (const stylist of MOCK_STYLISTS) { await setDoc(doc(db, 'stylists', stylist.id), stylist); }
+                      for (const item of MOCK_GALLERY) { await setDoc(doc(db, 'gallery', item.id), item); }
+                      await setDoc(doc(db, 'settings', 'pageSettings'), DEFAULT_PAGE_SETTINGS);
+                      alert('Default data seeded to Firestore successfully! The dashboard will update automatically.');
+                    } catch (err) {
+                      console.error(err);
+                      alert('Failed to seed data: ' + (err instanceof Error ? err.message : 'Unknown error'));
+                    }
+                  }}
+                  className="w-full min-h-12 rounded-xl bg-[#B88E39] text-white font-bold hover:bg-[#A37B2C] transition-colors flex items-center justify-center gap-2"
+                >
+                  <RefreshCw className="w-4 h-4" /> Seed Default Data to Firestore
+                </button>
+                <p className="text-[10px] text-[#8C8071]">Use this to populate an empty Firestore database with the default service catalog, stylists, and page content. Existing data with matching IDs will be overwritten.</p>
               </section>
             </div>
           )}

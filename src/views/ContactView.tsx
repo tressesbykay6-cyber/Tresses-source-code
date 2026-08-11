@@ -3,6 +3,8 @@ import { MapPin, Phone, MessageCircle, Clock, Send, CheckCircle2, Star, Sparkles
 import { Review } from '../types';
 import { MOCK_REVIEWS } from '../data/mockData';
 import { useScrollReveal } from '../hooks/useScrollReveal';
+import { db } from '../lib/firebase';
+import { collection, addDoc, onSnapshot, query, where } from 'firebase/firestore';
 
 interface ContactViewProps {
   pageSettings: any;
@@ -17,19 +19,13 @@ export const ContactView: React.FC<ContactViewProps> = ({ pageSettings }) => {
 
   const contactSettings = pageSettings?.contact || {};
 
+  // Listen to Firestore comments collection for those with admin replies
   useEffect(() => {
-    const loadComments = () => {
-      try {
-        const comments = JSON.parse(localStorage.getItem('tresses-comments') || '[]');
-        // Filter to only those with admin replies
-        setQaComments(comments.filter((c: any) => c.adminReply));
-      } catch (err) {
-        console.error(err);
-      }
-    };
-    loadComments();
-    window.addEventListener('storage', loadComments);
-    return () => window.removeEventListener('storage', loadComments);
+    const unsub = onSnapshot(collection(db, 'comments'), (snap) => {
+      const allComments = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      setQaComments(allComments.filter((c: any) => c.adminReply));
+    });
+    return () => unsub();
   }, []);
 
   // Client Review submission form state
@@ -40,25 +36,19 @@ export const ContactView: React.FC<ContactViewProps> = ({ pageSettings }) => {
   const [reviewQuote, setReviewQuote] = useState('');
   const [localReviews, setLocalReviews] = useState<Review[]>(MOCK_REVIEWS);
 
-  const handleSubmitInquiry = (e: React.FormEvent) => {
+  const handleSubmitInquiry = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || !phone) return;
 
     try {
-      const existing = JSON.parse(localStorage.getItem('tresses-comments') || '[]');
-      const newComment = {
-        id: `comment-${Date.now()}`,
+      await addDoc(collection(db, 'comments'), {
         bookingId: 'General Inquiry',
         clientName: name,
         message: message || 'Requested callback / consultation.',
         date: new Date().toISOString().slice(0, 10),
-      };
-      localStorage.setItem('tresses-comments', JSON.stringify([newComment, ...existing]));
-      
-      // Also dispatch storage event to notify other tabs/components if needed
-      window.dispatchEvent(new Event('storage'));
+      });
     } catch (err) {
-      console.error(err);
+      console.error('Failed to save inquiry to Firestore:', err);
     }
 
     setFormSubmitted(true);
@@ -70,7 +60,7 @@ export const ContactView: React.FC<ContactViewProps> = ({ pageSettings }) => {
     }, 4000);
   };
 
-  const handleSubmitReview = (e: React.FormEvent) => {
+  const handleSubmitReview = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!reviewerName || !reviewQuote) return;
     
@@ -88,18 +78,14 @@ export const ContactView: React.FC<ContactViewProps> = ({ pageSettings }) => {
 
     // Also push to comments so admin can see and reply/approve reviews if they wish
     try {
-      const existing = JSON.parse(localStorage.getItem('tresses-comments') || '[]');
-      const newComment = {
-        id: `comment-rev-${Date.now()}`,
+      await addDoc(collection(db, 'comments'), {
         bookingId: `Review: ${reviewService} (★${reviewRating})`,
         clientName: reviewerName,
         message: reviewQuote,
         date: new Date().toISOString().slice(0, 10),
-      };
-      localStorage.setItem('tresses-comments', JSON.stringify([newComment, ...existing]));
-      window.dispatchEvent(new Event('storage'));
+      });
     } catch (err) {
-      console.error(err);
+      console.error('Failed to save review to Firestore:', err);
     }
 
     setReviewSubmitted(true);

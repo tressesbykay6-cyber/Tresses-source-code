@@ -1,0 +1,13 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Public read access for all collections (customers need to see services, settings, gallery)
+    // Write access is open for now (bookings, comments from customers)
+    // TODO: Restrict writes to authenticated admin for services, stylists, gallery, settings
+    match /{document=**} {
+      allow read: if true;
+      allow write: if true;
+    }
+  }
+}
