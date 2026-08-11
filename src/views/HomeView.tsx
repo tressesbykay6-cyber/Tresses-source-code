@@ -46,7 +46,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
           
           <div className="reveal reveal-scale inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#FFFDF9] border border-[#B88E39]/40 text-[#B88E39] text-xs font-bold shadow-sm backdrop-blur-md">
             <Sparkles className="w-3.5 h-3.5 text-[#B88E39] animate-pulse" />
-            <span>{homeSettings.heroTagline || "Nairobi’s Boutique Beauty Atelier • JKUAT Towers & Mobile Housecalls"}</span>
+            <span>{homeSettings.heroTagline || "Nairobi’s Boutique Beauty Studio • JKUAT Towers & Mobile Housecalls"}</span>
           </div>
 
           <h1 className="reveal reveal-up reveal-delay-1 font-serif text-4xl sm:text-6xl lg:text-7xl font-bold text-[#1C1814] leading-[1.1] tracking-tight max-w-4xl mx-auto">

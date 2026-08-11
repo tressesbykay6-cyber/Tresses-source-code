@@ -22,7 +22,7 @@ import { MOCK_SERVICES, MOCK_STYLISTS, MOCK_GALLERY } from './data/mockData';
 export const DEFAULT_PAGE_SETTINGS = {
   home: {
     heroTitle: "Your crown, styled to perfection.",
-    heroTagline: "Nairobi's Boutique Beauty Atelier • JKUAT Towers & Mobile Housecalls",
+    heroTagline: "Nairobi's Boutique Beauty Studio • JKUAT Towers & Mobile Housecalls",
     heroSubtitle: "Nairobi's boutique studio for knotless braids, HD wig installs, custom color, and bridal glams — book your in-studio seat or mobile housecall in minutes.",
     heroVideoUrl: "/media/hero-intro.mp4",
     brandStoryQuote: "\u201cTresses by Kay is a Nairobi hair and beauty studio built on precision, warmth, and craft. From knotless braids to bridal makeup, every appointment is treated as an occasion — not just a service.\u201d",
@@ -32,7 +32,7 @@ export const DEFAULT_PAGE_SETTINGS = {
   },
   services: {
     introSubtitle: "The Menu",
-    introTitle: "Curated Atelier Services",
+    introTitle: "Curated Studio Services",
     introText: "From precise knotless braids to flawless HD wig installs, discover the signature transformations crafted by Kay."
   },
   gallery: {
@@ -42,7 +42,7 @@ export const DEFAULT_PAGE_SETTINGS = {
   },
   contact: {
     introTitle: "Welcome to Tresses by Kay",
-    introText: "Nairobi's premier boutique beauty atelier. Located at JKUAT Towers on Kenyatta Avenue, offering in-studio styling and mobile housecalls across Nairobi.",
+    introText: "Nairobi's premier boutique beauty studio. Located at JKUAT Towers on Kenyatta Avenue, offering in-studio styling and mobile housecalls across Nairobi.",
     address: "Kenyatta Ave, Mezzanine Floor, Shop M08",
     phone: "+254 011 883 1488",
     email: "trassesbykay6@gmail.com",
@@ -57,6 +57,13 @@ export const DEFAULT_PAGE_SETTINGS = {
 /* ─── Helper: convert Firestore doc to typed object ── */
 function docToObj<T>(snap: QueryDocumentSnapshot): T {
   return { id: snap.id, ...snap.data() } as T;
+}
+
+function removeLegacyAtelierLanguage(value: unknown): unknown {
+  if (typeof value === 'string') return value.replace(/\batelier\b/gi, 'studio');
+  if (Array.isArray(value)) return value.map(removeLegacyAtelierLanguage);
+  if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, removeLegacyAtelierLanguage(item)]));
+  return value;
 }
 
 export default function App() {
@@ -106,7 +113,7 @@ export default function App() {
     // 4. Page settings document (single doc)
     const unsubSettings = onSnapshot(doc(db, 'settings', 'pageSettings'), (snap) => {
       if (snap.exists()) {
-        const data = snap.data();
+        const data = removeLegacyAtelierLanguage(snap.data()) as Record<string, any>;
         setPageSettings({
           home: { ...DEFAULT_PAGE_SETTINGS.home, ...data.home },
           services: { ...DEFAULT_PAGE_SETTINGS.services, ...data.services },

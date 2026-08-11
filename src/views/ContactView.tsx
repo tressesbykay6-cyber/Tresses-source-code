@@ -87,11 +87,11 @@ export const ContactView: React.FC<ContactViewProps> = ({ pageSettings }) => {
           {contactSettings.introTitle || "Welcome to Tresses by Kay"}
         </h1>
         <p className="text-sm text-[#5C5247] font-light leading-relaxed">
-          {contactSettings.introText || "Nairobi’s premier boutique beauty atelier. Located at JKUAT Towers on Kenyatta Avenue, offering in-studio styling and mobile housecalls across Nairobi."}
+          {contactSettings.introText || "Nairobi’s premier boutique beauty studio. Located at JKUAT Towers on Kenyatta Avenue, offering in-studio styling and mobile housecalls across Nairobi."}
         </p>
       </div>
 
-      {/* 2. ABOUT US & ATELIER HERITAGE SECTION */}
+      {/* 2. ABOUT US & STUDIO HERITAGE SECTION */}
       <section className="reveal reveal-up bg-[#FFFDF9] border border-[#E5D7C0] rounded-3xl p-8 sm:p-12 shadow-sm relative overflow-hidden">
         <div className="absolute -right-20 -top-20 w-80 h-80 bg-[#F8E2C2]/40 rounded-full blur-3xl pointer-events-none" />
         
@@ -129,7 +129,7 @@ export const ContactView: React.FC<ContactViewProps> = ({ pageSettings }) => {
               Our Story & Philosophy
             </span>
             <h2 className="font-serif text-3xl font-bold text-[#1C1814] leading-tight">
-              A boutique atelier built on precision, warmth, and craft.
+              A boutique studio built on precision, warmth, and craft.
             </h2>
             <p className="text-sm text-[#5C5247] leading-relaxed font-light">
               Tresses by Kay began with a simple mission: to give Nairobi women an elevated, stress-free hair care experience where every appointment feels like an occasion. Whether you are coming in for a big chop, custom HD frontal melt, knotless braids, or bridal makeover, we treat your hair with utmost care and artistry.
@@ -171,7 +171,7 @@ export const ContactView: React.FC<ContactViewProps> = ({ pageSettings }) => {
               </div>
               <div>
                 <h3 className="font-serif text-xl font-bold text-[#1C1814]">
-                  JKUAT Towers Atelier
+                  JKUAT Towers Studio
                 </h3>
                 <p className="text-sm text-[#5C5247] mt-0.5">
                   {contactSettings.address || "Kenyatta Ave, Mezzanine Floor, Shop M08"}
@@ -199,7 +199,7 @@ export const ContactView: React.FC<ContactViewProps> = ({ pageSettings }) => {
                 className="bg-[#B88E39] hover:bg-[#A37B2C] text-[#FAF7F2] p-3 rounded-2xl flex items-center justify-center gap-2 text-xs font-bold transition-all shadow-sm"
               >
                 <MessageCircle className="w-4 h-4" />
-                <span>WhatsApp Atelier Direct</span>
+                <span>WhatsApp Direct</span>
               </a>
 
               <a
@@ -278,7 +278,7 @@ export const ContactView: React.FC<ContactViewProps> = ({ pageSettings }) => {
               <CheckCircle2 className="w-12 h-12 text-[#B88E39] mx-auto" />
               <h3 className="font-serif text-lg font-bold text-[#1C1814]">Inquiry Received!</h3>
               <p className="text-xs text-[#5C5247]">
-                Thank you, {name}. Our atelier manager will contact you on WhatsApp or phone shortly.
+                Thank you, {name}. Our studio manager will contact you on WhatsApp or phone shortly.
               </p>
             </div>
           ) : (
@@ -344,7 +344,7 @@ export const ContactView: React.FC<ContactViewProps> = ({ pageSettings }) => {
           <div>
             <span className="text-xs uppercase tracking-widest text-[#B88E39] font-bold">Verified Client Feedback</span>
             <h2 className="font-serif text-3xl font-bold text-[#1C1814] mt-1">
-              Words from Atelier Clients
+              Words from Our Clients
             </h2>
             <p className="text-xs text-[#5C5247] font-light mt-1 max-w-lg">
               Read real client testimonials from appointments at our JKUAT Towers studio and housecall visits across Nairobi.
@@ -402,7 +402,7 @@ export const ContactView: React.FC<ContactViewProps> = ({ pageSettings }) => {
           <div className="bg-[#FFFDF9] p-8 rounded-3xl border border-[#E5D7C0] shadow-sm max-w-2xl mx-auto space-y-6">
             <div className="text-center space-y-1">
               <h3 className="font-serif text-xl font-bold text-[#1C1814] flex items-center justify-center gap-2">
-                <MessageCircle className="w-5 h-5 text-[#B88E39]" /> Atelier Public Q&A
+                <MessageCircle className="w-5 h-5 text-[#B88E39]" /> Public Q&A
               </h3>
               <p className="text-xs text-[#5C5247]">Answers to questions and service inquiries from Kay</p>
             </div>

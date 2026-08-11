@@ -21,7 +21,7 @@ export const PrivacyPolicyView: React.FC = () => {
             <h2 className="font-serif text-xl font-bold">1. Introduction</h2>
           </div>
           <p className="text-sm leading-relaxed font-light">
-            Welcome to Tresses by Kay (referred to as "we", "our", or "atelier"). We respect your privacy and are committed to protecting your personal data. This privacy policy explains how we collect, use, and protect your information when you visit our website, book services with us, or contact us.
+            Welcome to Tresses by Kay (referred to as "we" or "our"). We respect your privacy and are committed to protecting your personal data. This privacy policy explains how we collect, use, and protect your information when you visit our website, book services with us, or contact us.
           </p>
         </section>
 

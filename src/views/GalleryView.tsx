@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react'
 import { Calendar, ChevronLeft, ChevronRight, Play, Sparkles } from 'lucide-react';
 import { useScrollReveal } from '../hooks/useScrollReveal';
 import { GalleryItem } from '../types';
+import galleryManifest from '../data/galleryManifest.json';
+import videoManifest from '../data/videoManifest.json';
 
 interface GalleryViewProps {
   galleryItems: GalleryItem[];
@@ -19,16 +21,25 @@ export const GalleryView: React.FC<GalleryViewProps> = ({ galleryItems, pageSett
   // Extract reels and stills dynamically from state
   const reels = useMemo(() => {
     const videoUrls = galleryItems
-      .filter(item => item.category === 'Videos' && item.videoUrl)
+      .filter(item => item.category === 'Videos' && item.videoUrl && !item.videoUrl.includes('assets.mixkit.co'))
       .map(item => item.videoUrl as string);
-    
-    return videoUrls.length > 0 ? videoUrls : [
-      'https://assets.mixkit.co/videos/preview/mixkit-hairdresser-combing-a-clients-hair-41228-large.mp4'
-    ];
+
+    // Reels shipped with the site are reliable on every device; the previous
+    // third-party preview URL was the source of the blank video panel.
+    return videoUrls.length > 0 ? videoUrls : videoManifest;
   }, [galleryItems]);
 
   const images = useMemo(() => {
-    return galleryItems.filter(item => item.category !== 'Videos');
+    const stills = galleryItems.filter(item => item.category !== 'Videos');
+    const imageOccurrences = new Map<string, number>();
+    stills.forEach((item) => imageOccurrences.set(item.image, (imageOccurrences.get(item.image) || 0) + 1));
+    return stills.map((item, index) => {
+      const hasBrokenLegacyPath = !item.image || item.image.includes('Dark_themed_logo_design') || item.image.includes('logo_design');
+      // Legacy seed data used one missing placeholder for every record. Replace
+      // it (and an all-duplicate legacy feed) with the packaged real gallery.
+      const needsCuratedImage = hasBrokenLegacyPath || (stills.length > 2 && (imageOccurrences.get(item.image) || 0) > 1);
+      return needsCuratedImage ? { ...item, image: galleryManifest[index % galleryManifest.length] } : item;
+    });
   }, [galleryItems]);
 
   const changeReel = useCallback((step: number) => {
@@ -58,7 +69,7 @@ export const GalleryView: React.FC<GalleryViewProps> = ({ galleryItems, pageSett
       </header>
 
       <section aria-label="Featured video reel" className="reveal reveal-scale relative aspect-video rounded-3xl overflow-hidden border border-[#DECDBD] shadow-lg group bg-[#403833]">
-        <video ref={reelRef} autoPlay muted playsInline preload="metadata" onEnded={() => changeReel(1)} className="w-full h-full object-cover grayscale brightness-95 contrast-125" onError={(e) => { (e.currentTarget as HTMLVideoElement).style.display = 'none'; }}>
+        <video ref={reelRef} autoPlay muted playsInline preload="metadata" poster="/media/gallery/DaVfj4Dl-_7.webp" onEnded={() => changeReel(1)} className="w-full h-full object-cover grayscale brightness-95 contrast-125" onError={() => changeReel(1)}>
           <source src={reels[currentReel]} type="video/mp4" />
         </video>
         <div className="absolute inset-0 bg-gradient-to-t from-[#2F2924]/65 via-transparent to-[#2F2924]/15 pointer-events-none" />

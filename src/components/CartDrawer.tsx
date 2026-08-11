@@ -44,7 +44,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
         <div className="flex items-center justify-between pb-4 border-b border-[#E5D7C0]">
           <div className="flex items-center gap-2">
             <ShoppingBag className="w-5 h-5 text-[#B88E39]" />
-            <h3 className="font-serif text-lg font-bold text-[#1C1814]">Your Atelier Cart</h3>
+            <h3 className="font-serif text-lg font-bold text-[#1C1814]">Your Cart</h3>
           </div>
           <button onClick={onClose} className="p-1.5 text-[#5C5247] hover:text-[#B88E39]">
             <X className="w-6 h-6" />

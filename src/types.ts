@@ -94,7 +94,7 @@ export interface LoyaltyAccount {
   points: number;
   targetPoints: number;
   nextReward: string;
-  tier: 'Gold Atelier' | 'Platinum Atelier' | 'VIP Diamond';
+  tier: 'Gold Studio' | 'Platinum Studio' | 'VIP Diamond';
   upcomingBookings: Booking[];
   pastBookings: Booking[];
   savedInspoIds: string[];

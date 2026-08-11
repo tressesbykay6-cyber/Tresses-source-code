@@ -15,7 +15,7 @@ export const ShopView: React.FC<ShopViewProps> = ({ products, onAddToCart, onOpe
       {/* Title */}
       <div className="text-center space-y-3 max-w-xl mx-auto">
         <span className="text-xs uppercase tracking-widest text-[#B88E39] font-bold flex items-center justify-center gap-1.5">
-          <Sparkles className="w-4 h-4" /> Atelier Retail Shop
+          <Sparkles className="w-4 h-4" /> Tresses Retail Shop
         </span>
         <h1 className="font-serif text-4xl sm:text-5xl font-bold text-[#1C1814]">
           Hair Care & Styling Essentials

@@ -26,7 +26,7 @@ export const Footer: React.FC<FooterProps> = ({ setActiveSection, onOpenBooking 
           </div>
 
           <p className="text-sm text-[#5C5247] leading-relaxed font-light">
-            All things hair & beauty. Nairobi’s boutique beauty atelier built on precision, warmth, and craft. Every appointment is treated as an occasion.
+            All things hair & beauty. Nairobi’s boutique beauty studio built on precision, warmth, and craft. Every appointment is treated as an occasion.
           </p>
 
           <div className="flex items-center gap-3 pt-2">

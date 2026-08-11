@@ -38,7 +38,7 @@ export const ServicesView: React.FC<ServicesViewProps> = ({
           {servicesSettings.introSubtitle || "The Menu"}
         </span>
         <h1 className="font-serif text-4xl sm:text-5xl font-bold text-[#1C1814]">
-          {servicesSettings.introTitle || "Curated Atelier Services"}
+          {servicesSettings.introTitle || "Curated Studio Services"}
         </h1>
         <p className="text-sm text-[#5C5247] max-w-xl mx-auto font-light">
           {servicesSettings.introText || "From precise knotless braids to flawless HD wig installs, discover the signature transformations crafted by Kay."}

@@ -1251,7 +1251,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         <textarea rows={3} value={localContactSettings.introText} onChange={e => setLocalContactSettings({...localContactSettings, introText: e.target.value})} />
                       </label>
                       <div className="grid sm:grid-cols-2 gap-4">
-                        <label className="admin-field">Atelier Room Address
+                        <label className="admin-field">Studio Address
                           <input value={localContactSettings.address} onChange={e => setLocalContactSettings({...localContactSettings, address: e.target.value})} />
                         </label>
                         <label className="admin-field">Support Phone Number
@@ -1259,7 +1259,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         </label>
                       </div>
                       <div className="grid sm:grid-cols-2 gap-4">
-                        <label className="admin-field">Atelier Support Email
+                        <label className="admin-field">Studio Support Email
                           <input value={localContactSettings.email} onChange={e => setLocalContactSettings({...localContactSettings, email: e.target.value})} />
                         </label>
                         <label className="admin-field">WhatsApp URL or Direct Number

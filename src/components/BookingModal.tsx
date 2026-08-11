@@ -280,7 +280,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
           {step === 2 && (
             <div className="space-y-6">
               <p className="text-xs text-[#5C5247] leading-relaxed">
-                Choose whether you'd like to be styled at our Kenyatta Ave atelier or receive full mobile service at your residence or hotel in Nairobi.
+                Choose whether you'd like to be styled at our Kenyatta Ave studio or receive full mobile service at your residence or hotel in Nairobi.
               </p>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -317,7 +317,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                     </div>
                     <div>
                       <h4 className="font-serif text-sm font-bold text-[#1C1814]">Housecall / In-Home</h4>
-                      <p className="text-[11px] text-[#B88E39] font-bold">Mobile Atelier across Nairobi (+ KSh 1,500)</p>
+                      <p className="text-[11px] text-[#B88E39] font-bold">Mobile Styling across Nairobi (+ KSh 1,500)</p>
                     </div>
                   </div>
                 </div>
