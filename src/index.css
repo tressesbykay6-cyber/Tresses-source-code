@@ -214,6 +214,17 @@
   box-shadow: 0 0 12px rgba(184, 142, 57, 0.4);
 }
 
+/* Secondary buttons normally use dark text. This call-to-action sits on a
+   dark surface, so force a readable foreground for both its icon and label. */
+.cta-whatsapp,
+.cta-whatsapp span {
+  color: #FAF7F2 !important;
+}
+
+.cta-whatsapp {
+  background-color: rgba(250, 247, 242, 0.06);
+}
+
 .card-interactive {
   transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1), box-shadow 0.4s cubic-bezier(0.25, 1, 0.5, 1), border-color 0.4s ease;
   transform: perspective(1000px) rotateX(0) rotateY(0);

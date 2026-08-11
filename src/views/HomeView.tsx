@@ -121,7 +121,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
               href="https://wa.me/254118831488"
               target="_blank"
               rel="noopener noreferrer"
-              className="btn-secondary w-full sm:w-auto font-semibold text-sm px-8 py-4 rounded-full flex items-center justify-center gap-2 border-white/20 text-white hover:border-[#B88E39]"
+              className="btn-secondary cta-whatsapp w-full sm:w-auto font-semibold text-sm px-8 py-4 rounded-full flex items-center justify-center gap-2 border-white/20 hover:border-[#B88E39]"
             >
               <MessageCircle className="w-4 h-4 text-[#B88E39]" />
               <span>WhatsApp +254 011 883 1488</span>
