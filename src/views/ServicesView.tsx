@@ -6,6 +6,7 @@ import { useScrollReveal } from '../hooks/useScrollReveal';
 interface ServicesViewProps {
   services: Service[];
   reviews: Review[];
+  pageSettings: any;
   onOpenBooking: (service?: Service) => void;
   onNavigate: (section: string) => void;
 }
@@ -13,21 +14,25 @@ interface ServicesViewProps {
 export const ServicesView: React.FC<ServicesViewProps> = ({
   services,
   reviews,
+  pageSettings,
   onOpenBooking,
 }) => {
   const revealRef = useScrollReveal();
+  const servicesSettings = pageSettings?.services || {};
 
   return (
     <div ref={revealRef} className="space-y-16 sm:space-y-24 pt-24 pb-16 animate-fade-in">
       
       {/* PAGE HEADER */}
       <section className="reveal reveal-up max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-4">
-        <span className="text-xs uppercase tracking-widest text-[#B88E39] font-bold">The Menu</span>
+        <span className="text-xs uppercase tracking-widest text-[#B88E39] font-bold">
+          {servicesSettings.introSubtitle || "The Menu"}
+        </span>
         <h1 className="font-serif text-4xl sm:text-5xl font-bold text-[#1C1814]">
-          Curated Atelier Services
+          {servicesSettings.introTitle || "Curated Atelier Services"}
         </h1>
         <p className="text-sm text-[#5C5247] max-w-xl mx-auto font-light">
-          From precise knotless braids to flawless HD wig installs, discover the signature transformations crafted by Kay.
+          {servicesSettings.introText || "From precise knotless braids to flawless HD wig installs, discover the signature transformations crafted by Kay."}
         </p>
       </section>
 
@@ -61,6 +66,11 @@ export const ServicesView: React.FC<ServicesViewProps> = ({
                   <p className="text-xs text-[#5C5247] mt-2 line-clamp-2 font-light leading-relaxed">
                     {service.description}
                   </p>
+                  {service.numberOfStylists && service.numberOfStylists > 0 && (
+                    <p className="text-[10px] text-[#9A6F2E] font-bold mt-2">
+                      {service.numberOfStylists} stylist{service.numberOfStylists > 1 ? 's' : ''} performing this service
+                    </p>
+                  )}
                 </div>
 
                 <div className="pt-4 border-t border-[#E5D7C0]/60 flex items-center justify-between">

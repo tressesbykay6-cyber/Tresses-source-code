@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { X, CheckCircle2, Calendar, Clock, MapPin, Home, MessageCircle, ArrowLeft, Sparkles } from 'lucide-react';
-import { Service, ServiceCategory } from '../types';
+import { Service, ServiceCategory, Stylist } from '../types';
 
 interface BookingModalProps {
   isOpen: boolean;
   onClose: () => void;
   services: Service[];
+  stylists: Stylist[];
   preselectedService?: Service | null;
   onBookingComplete?: (bookingData: any) => void;
 }
@@ -14,6 +15,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   isOpen,
   onClose,
   services,
+  stylists,
   preselectedService = null,
   onBookingComplete,
 }) => {
@@ -35,6 +37,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   const [clientName, setClientName] = useState('');
   const [clientPhone, setClientPhone] = useState('');
   const [clientNotes, setClientNotes] = useState('');
+  const [requestedStylist, setRequestedStylist] = useState<string>(''); // For preferred stylist selection
 
   useEffect(() => {
     if (preselectedService) setSelectedService(preselectedService);
@@ -68,6 +71,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
       locationInfo,
       `📅 *Preferred Date:* ${selectedDate}`,
       `🕐 *Preferred Time:* ${selectedTime}`,
+      ...(requestedStylist ? [`💇‍♀️ *Requested Stylist:* ${requestedStylist}`] : []),
       ``,
       `👤 *Name:* ${clientName}`,
       `📱 *Phone:* ${clientPhone}`,
@@ -103,10 +107,12 @@ export const BookingModal: React.FC<BookingModalProps> = ({
         depositPaid: 0,
         totalPrice: totalPrice,
         balanceDue: totalPrice,
-        status: 'Pending – WhatsApp',
+        status: 'Pending',
         clientName,
         clientPhone,
         notes: clientNotes,
+        requestedStylistName: requestedStylist || 'None',
+        durationMinutes: selectedService.durationMinutes || 60,
       };
       onBookingComplete(newBooking);
     }
@@ -117,6 +123,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
 
   const handleResetModal = () => {
     setStep(1);
+    setRequestedStylist('');
     onClose();
   };
 
@@ -207,6 +214,14 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                           <span className="text-[#5C5247] flex items-center gap-1 font-medium">
                             <Clock className="w-3.5 h-3.5 text-[#B88E39]" /> {service.durationLabel}
                           </span>
+                          {service.numberOfStylists && service.numberOfStylists > 0 && (
+                            <>
+                              <span className="text-[#E5D7C0]">•</span>
+                              <span className="text-[#9A6F2E] font-bold">
+                                {service.numberOfStylists} stylist{service.numberOfStylists > 1 ? 's' : ''} available
+                              </span>
+                            </>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -315,9 +330,31 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                 </div>
               </div>
               <div className="space-y-3">
-                <input type="text" placeholder="Full Name *" value={clientName} onChange={(e) => setClientName(e.target.value)} className="w-full bg-[#FFFDF9] border border-[#E5D7C0] rounded-xl p-2.5 text-xs" />
-                <input type="tel" placeholder="Phone Number *" value={clientPhone} onChange={(e) => setClientPhone(e.target.value)} className="w-full bg-[#FFFDF9] border border-[#E5D7C0] rounded-xl p-2.5 text-xs" />
-                <input type="text" placeholder="Notes (Optional)" value={clientNotes} onChange={(e) => setClientNotes(e.target.value)} className="w-full bg-[#FFFDF9] border border-[#E5D7C0] rounded-xl p-2.5 text-xs" />
+                <div>
+                  <label className="block text-[10px] uppercase font-bold text-[#665B53] mb-1">Select Stylist (Optional)</label>
+                  <select
+                    value={requestedStylist}
+                    onChange={(e) => setRequestedStylist(e.target.value)}
+                    className="w-full bg-[#FFFDF9] border border-[#E5D7C0] rounded-xl p-2.5 text-xs text-[#1C1814] outline-none"
+                  >
+                    <option value="">Choose a stylist (or any available)</option>
+                    {stylists.map(st => (
+                      <option key={st.id} value={st.name}>{st.name} ({st.role})</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] uppercase font-bold text-[#665B53] mb-1">Your Full Name *</label>
+                  <input type="text" placeholder="e.g. Sharon Wanjiku" value={clientName} onChange={(e) => setClientName(e.target.value)} className="w-full bg-[#FFFDF9] border border-[#E5D7C0] rounded-xl p-2.5 text-xs" />
+                </div>
+                <div>
+                  <label className="block text-[10px] uppercase font-bold text-[#665B53] mb-1">Phone Number (WhatsApp / M-Pesa) *</label>
+                  <input type="tel" placeholder="e.g. +254 712 345 678" value={clientPhone} onChange={(e) => setClientPhone(e.target.value)} className="w-full bg-[#FFFDF9] border border-[#E5D7C0] rounded-xl p-2.5 text-xs" />
+                </div>
+                <div>
+                  <label className="block text-[10px] uppercase font-bold text-[#665B53] mb-1">Additional Notes (Optional)</label>
+                  <input type="text" placeholder="e.g. Pre-stretched extensions, specific color blend" value={clientNotes} onChange={(e) => setClientNotes(e.target.value)} className="w-full bg-[#FFFDF9] border border-[#E5D7C0] rounded-xl p-2.5 text-xs" />
+                </div>
               </div>
               <div className="flex justify-between items-center pt-4 border-t border-[#E5D7C0]/60">
                 <button onClick={() => setStep(2)} className="text-xs text-[#5C5247] hover:text-[#B88E39] flex items-center gap-1 font-medium"><ArrowLeft className="w-4 h-4" /> Back</button>

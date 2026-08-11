@@ -4,9 +4,9 @@ import {
   FileImage, LayoutDashboard, LoaderCircle, Plus, Scissors, ShieldCheck,
   Trash2, UploadCloud, X, MessageCircle, Download, Users, Star,
   Search, LogOut, Lock, TrendingUp, DollarSign, Clock, Eye, Send,
-  RefreshCw, AlertTriangle, CheckCircle2, MessageSquare, Filter,
+  RefreshCw, AlertTriangle, CheckCircle2, MessageSquare, Filter, Play,
 } from 'lucide-react';
-import { Service, ServiceCategory } from '../types';
+import { Service, ServiceCategory, Stylist, GalleryItem } from '../types';
 import { PreparedUpload, allowUploadAttempt, cacheUpload, prepareUpload } from '../lib/mediaUpload';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -30,6 +30,8 @@ export interface AdminBooking {
   verifiedAt?: string;
   refundAmount?: number;
   createdAt?: string;
+  requestedStylistName?: string;
+  durationMinutes?: number;
 }
 
 export interface ClientComment {
@@ -47,6 +49,12 @@ interface AdminDashboardProps {
   bookings: AdminBooking[];
   onServicesChange: (services: Service[]) => void;
   onBookingsChange: (bookings: AdminBooking[]) => void;
+  stylists: Stylist[];
+  onStylistsChange: (stylists: Stylist[]) => void;
+  galleryItems: GalleryItem[];
+  onGalleryItemsChange: (items: GalleryItem[]) => void;
+  pageSettings: any;
+  onPageSettingsChange: (settings: any) => void;
   onExit: () => void;
 }
 
@@ -58,10 +66,53 @@ const REFUND_RATE = 0.85; // 85% refund
 const REFUND_FEE_RATE = 0.15; // 15% fee
 const REFUND_WAITING_DAYS = 7;
 
-type Panel = 'overview' | 'bookings' | 'calendar' | 'services' | 'clients' | 'comments' | 'media' | 'settings';
+type Panel = 'overview' | 'bookings' | 'calendar' | 'services' | 'stylists' | 'clients' | 'comments' | 'media' | 'pages' | 'settings';
 const categories: ServiceCategory[] = ['Braids', 'Wigs & Extensions', 'Hair Treatments & Color', 'Makeup', 'Nails'];
 const CHART_COLORS = ['#B88E39', '#1C1814', '#5C5247', '#E5D7C0', '#D4A853'];
-const emptyService: Service = { id: '', name: '', category: 'Braids', price: 0, durationMinutes: 60, durationLabel: '1 hr', stylistName: 'Kay', stylistId: 'st2', rating: 5, reviewCount: 0, image: '/media/gallery/DbkZiW1l7NZ.webp', description: '', depositAmount: 0 };
+
+const emptyService: Service = {
+  id: '',
+  name: '',
+  category: 'Braids',
+  price: 0,
+  durationMinutes: 60,
+  durationLabel: '1 hr',
+  stylistName: 'Kay',
+  stylistId: 'st2',
+  rating: 5,
+  reviewCount: 0,
+  image: '/media/gallery/DbkZiW1l7NZ.webp',
+  description: '',
+  depositAmount: 0,
+  numberOfStylists: 1,
+};
+
+const emptyStylist: Stylist = {
+  id: '',
+  name: '',
+  role: '',
+  bio: '',
+  photo: '/media/kay-founder.webp',
+  specialties: ['Braids'],
+  experienceYears: 3,
+  rating: 5.0,
+  reviewCount: 0,
+  portfolio: [],
+  availableDays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
+};
+
+const emptyGalleryItem: GalleryItem = {
+  id: '',
+  title: '',
+  category: 'Braids',
+  image: '/media/gallery/DbkZiW1l7NZ.webp',
+  likes: 0,
+  stylistName: 'Kay (Founder)',
+  isBeforeAfter: false,
+  beforeImage: '',
+  afterImage: '',
+  videoUrl: '',
+};
 
 /* ─── Login Gate ──────────────────────────────────────────────── */
 
@@ -153,10 +204,10 @@ const AdminLogin: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
 /* ─── Helpers ──────────────────────────────────────────────── */
 
 function exportBookingsCSV(bookings: AdminBooking[]) {
-  const headers = ['ID', 'Client', 'Phone', 'Service', 'Date', 'Time', 'Deposit (KSh)', 'Total (KSh)', 'Status', 'Admin Comment', 'Notes'];
+  const headers = ['ID', 'Client', 'Phone', 'Service', 'Duration (Mins)', 'Date', 'Time', 'DepositPaid (KSh)', 'Total (KSh)', 'Status', 'Requested Stylist', 'Admin Comment', 'Notes'];
   const rows = bookings.map(b => [
-    b.id, b.clientName, b.clientPhone, b.service.name, b.date, b.timeSlot,
-    b.depositPaid, b.totalPrice, b.status, b.adminComment || '', b.notes || '',
+    b.id, b.clientName, b.clientPhone, b.service.name, b.durationMinutes || b.service.durationMinutes || 60, b.date, b.timeSlot,
+    b.depositPaid, b.totalPrice, b.status, b.requestedStylistName || 'None', b.adminComment || '', b.notes || '',
   ]);
   const csv = [headers, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -181,10 +232,20 @@ function daysAgo(dateStr: string): number {
 
 /* ─── Main Dashboard ──────────────────────────────────────── */
 
-export const AdminDashboard: React.FC<AdminDashboardProps> = ({ services, bookings, onServicesChange, onBookingsChange, onExit }) => {
+export const AdminDashboard: React.FC<AdminDashboardProps> = ({
+  services, bookings, onServicesChange, onBookingsChange,
+  stylists, onStylistsChange,
+  galleryItems, onGalleryItemsChange,
+  pageSettings, onPageSettingsChange,
+  onExit
+}) => {
   const [isAuthenticated, setIsAuthenticated] = useState(() => sessionStorage.getItem('tresses-admin-auth') === 'true');
   const [panel, setPanel] = useState<Panel>('overview');
   const [editingService, setEditingService] = useState<Service | null>(null);
+  const [editingStylist, setEditingStylist] = useState<Stylist | null>(null);
+  const [editingGalleryItem, setEditingGalleryItem] = useState<GalleryItem | null>(null);
+  const [editingPage, setEditingPage] = useState<'home' | 'services' | 'gallery' | 'contact' | null>(null);
+
   const [upload, setUpload] = useState<PreparedUpload | null>(null);
   const [uploadMessage, setUploadMessage] = useState('');
   const [uploading, setUploading] = useState(false);
@@ -193,6 +254,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ services, bookin
   const [commentReply, setCommentReply] = useState<Record<string, string>>({});
   const [adminCommentInput, setAdminCommentInput] = useState<Record<string, string>>({});
   const fileInput = useRef<HTMLInputElement>(null);
+
+  // Specialties input helper
+  const [stylistSpecialtiesStr, setStylistSpecialtiesStr] = useState('');
+
+  // Page Content Local Edits
+  const [localHomeSettings, setLocalHomeSettings] = useState(() => pageSettings.home);
+  const [localServicesSettings, setLocalServicesSettings] = useState(() => pageSettings.services);
+  const [localGallerySettings, setLocalGallerySettings] = useState(() => pageSettings.gallery);
+  const [localContactSettings, setLocalContactSettings] = useState(() => pageSettings.contact);
+
+  useEffect(() => {
+    setLocalHomeSettings(pageSettings.home);
+    setLocalServicesSettings(pageSettings.services);
+    setLocalGallerySettings(pageSettings.gallery);
+    setLocalContactSettings(pageSettings.contact);
+  }, [pageSettings]);
 
   // Comments from localStorage
   const [comments, setComments] = useState<ClientComment[]>(() => {
@@ -226,7 +303,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ services, bookin
   const servicePopularity = useMemo(() => {
     const map: Record<string, number> = {};
     bookings.forEach(b => { map[b.service.name] = (map[b.service.name] || 0) + 1; });
-    return Object.entries(map).sort(([, a], [, b]) => b - a).slice(0, 6).map(([name, count]) => ({ name: name.length > 18 ? name.slice(0, 18) + '…' : name, count }));
+    return Object.entries(map).sort((mapA, mapB) => mapB[1] - mapA[1]).slice(0, 6).map(([name, count]) => ({ name: name.length > 18 ? name.slice(0, 18) + '…' : name, count }));
   }, [bookings]);
 
   const statusBreakdown = useMemo(() => {
@@ -272,10 +349,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ services, bookin
     onBookingsChange(bookings.map(b => {
       if (b.id !== id) return b;
       const updates: Partial<AdminBooking> = { status };
+      if (status === 'Confirmed') updates.depositPaid = b.depositPaid || Math.round(b.totalPrice * 0.3); // Record deposit paid when approved
       if (status === 'Verified') updates.verifiedAt = new Date().toISOString();
       if (status === 'Refunded') updates.refundAmount = Math.round(b.depositPaid * REFUND_RATE);
       return { ...b, ...updates };
     }));
+  };
+
+  const deleteBooking = (id: string) => {
+    if (confirm('Are you sure you want to permanently delete this booking?')) {
+      onBookingsChange(bookings.filter(b => b.id !== id));
+    }
   };
 
   const addAdminComment = (id: string) => {
@@ -292,6 +376,73 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ services, bookin
     setCommentReply(prev => ({ ...prev, [commentId]: '' }));
   };
 
+  /* ─── Stylists CRUD ───────────────────────────────── */
+  const saveStylist = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!editingStylist || !editingStylist.name.trim()) return;
+    const specialties = stylistSpecialtiesStr.split(',').map(s => s.trim()).filter(Boolean);
+    const nextStylist = {
+      ...editingStylist,
+      id: editingStylist.id || `stylist-${Date.now()}`,
+      specialties
+    };
+    if (editingStylist.id) {
+      onStylistsChange(stylists.map(s => s.id === editingStylist.id ? nextStylist : s));
+    } else {
+      onStylistsChange([...stylists, nextStylist]);
+    }
+    setEditingStylist(null);
+  };
+
+  const deleteStylist = (id: string) => {
+    if (confirm('Are you sure you want to delete this stylist?')) {
+      onStylistsChange(stylists.filter(s => s.id !== id));
+    }
+  };
+
+  const startEditStylist = (stylist: Stylist) => {
+    setEditingStylist(stylist);
+    setStylistSpecialtiesStr(stylist.specialties.join(', '));
+  };
+
+  /* ─── Gallery CRUD ────────────────────────────────── */
+  const saveGalleryItem = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!editingGalleryItem || !editingGalleryItem.title.trim()) return;
+    const nextItem = {
+      ...editingGalleryItem,
+      id: editingGalleryItem.id || `gallery-${Date.now()}`
+    };
+    if (editingGalleryItem.id) {
+      onGalleryItemsChange(galleryItems.map(item => item.id === editingGalleryItem.id ? nextItem : item));
+    } else {
+      onGalleryItemsChange([nextItem, ...galleryItems]);
+    }
+    setEditingGalleryItem(null);
+  };
+
+  const deleteGalleryItem = (id: string) => {
+    if (confirm('Are you sure you want to delete this Lookbook item?')) {
+      onGalleryItemsChange(galleryItems.filter(item => item.id !== id));
+    }
+  };
+
+  /* ─── Page Settings CMS ───────────────────────────── */
+  const savePageChanges = (pageKey: 'home' | 'services' | 'gallery' | 'contact') => {
+    let targetSettings = localHomeSettings;
+    if (pageKey === 'services') targetSettings = localServicesSettings;
+    if (pageKey === 'gallery') targetSettings = localGallerySettings;
+    if (pageKey === 'contact') targetSettings = localContactSettings;
+
+    onPageSettingsChange({
+      ...pageSettings,
+      [pageKey]: targetSettings
+    });
+    setEditingPage(null);
+    alert(`${pageKey.charAt(0).toUpperCase() + pageKey.slice(1)} page content updated successfully!`);
+  };
+
+  /* ─── Service Edit CRUD ───────────────────────────── */
   const saveService = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!editingService || !editingService.name.trim() || !editingService.description.trim()) return;
@@ -341,9 +492,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ services, bookin
     { id: 'bookings', label: 'Bookings', icon: ClipboardList, badge: pendingCount },
     { id: 'calendar', label: 'Calendar', icon: CalendarDays },
     { id: 'services', label: 'Services', icon: Scissors, badge: services.length },
+    { id: 'stylists', label: 'Stylists', icon: Users, badge: stylists.length },
     { id: 'clients', label: 'Clients', icon: Users, badge: clients.length },
     { id: 'comments', label: 'Comments', icon: MessageSquare, badge: comments.filter(c => !c.adminReply).length },
-    { id: 'media', label: 'Media', icon: UploadCloud },
+    { id: 'media', label: 'Media uploads', icon: UploadCloud },
+    { id: 'pages', label: 'Public pages', icon: FileImage },
     { id: 'settings', label: 'Settings', icon: ShieldCheck },
   ];
 
@@ -367,7 +520,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ services, bookin
 
           <nav className="flex lg:flex-col gap-1 overflow-x-auto py-4 flex-1" aria-label="Admin sections">
             {sideItems.map(({ id, label, icon: Icon, badge }) => (
-              <button key={id} onClick={() => { setPanel(id); setSearchQuery(''); setStatusFilter('all'); }} className={`min-h-11 shrink-0 flex items-center gap-3 rounded-xl px-3 text-sm font-semibold text-left transition-colors ${panel === id ? 'bg-[#403833] text-[#FAF7F2] shadow-sm' : 'text-[#665B53] hover:bg-[#F7F2EB]'}`}>
+              <button key={id} onClick={() => { setPanel(id); setSearchQuery(''); setStatusFilter('all'); setEditingPage(null); }} className={`min-h-11 shrink-0 flex items-center gap-3 rounded-xl px-3 text-sm font-semibold text-left transition-colors ${panel === id ? 'bg-[#403833] text-[#FAF7F2] shadow-sm' : 'text-[#665B53] hover:bg-[#F7F2EB]'}`}>
                 <Icon className="w-4 h-4" />
                 <span className="flex-1">{label}</span>
                 {badge !== undefined && badge > 0 && (
@@ -538,6 +691,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ services, bookin
                     <tr>
                       <th className="p-4">Client</th>
                       <th className="p-4">Appointment</th>
+                      <th className="p-4">Duration</th>
                       <th className="p-4">Deposit</th>
                       <th className="p-4">Status</th>
                       <th className="p-4">Comment</th>
@@ -554,6 +708,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ services, bookin
                         <td className="p-4">
                           {booking.service.name}<br />
                           <span className="text-xs text-[#665B53]">{booking.date} · {booking.timeSlot}</span>
+                          {booking.requestedStylistName && (
+                            <p className="text-[10px] text-[#B88E39] font-bold mt-0.5">Requested Stylist: {booking.requestedStylistName}</p>
+                          )}
+                        </td>
+                        <td className="p-4 font-bold text-xs text-[#665B53]">
+                          {booking.durationMinutes || booking.service.durationMinutes} mins
                         </td>
                         <td className="p-4">
                           KSh {booking.depositPaid.toLocaleString()}
@@ -570,9 +730,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ services, bookin
                           }`}>{booking.status}</span>
                           {booking.verifiedAt && <p className="text-[10px] text-[#665B53] mt-1">Verified {booking.verifiedAt.slice(0, 10)}</p>}
                         </td>
-                        <td className="p-4 max-w-[200px]">
+                        <td className="p-4 max-w-[150px]">
                           {booking.adminComment ? (
-                            <p className="text-xs text-[#665B53] italic">"{booking.adminComment}"</p>
+                            <p className="text-xs text-[#665B53] italic font-medium">"{booking.adminComment}"</p>
                           ) : (
                             <div className="flex gap-1">
                               <input value={adminCommentInput[booking.id] || ''} onChange={e => setAdminCommentInput(p => ({ ...p, [booking.id]: e.target.value }))} placeholder="Add note…" className="flex-1 text-xs border border-[#DECDBD] rounded-lg px-2 py-1.5 min-w-0 focus:outline-none focus:border-[#B88E39]" />
@@ -584,7 +744,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ services, bookin
                           <div className="flex flex-wrap gap-1.5">
                             {booking.status === 'Pending' && (
                               <>
-                                <button onClick={() => updateStatus(booking.id, 'Confirmed')} className="min-h-8 rounded-lg bg-[#403833] text-white px-2.5 text-[11px] font-bold hover:bg-[#2C2620]">Confirm</button>
+                                <button onClick={() => updateStatus(booking.id, 'Confirmed')} className="min-h-8 rounded-lg bg-[#403833] text-white px-2.5 text-[11px] font-bold hover:bg-[#2C2620]">Approve</button>
                                 <button onClick={() => updateStatus(booking.id, 'Cancelled')} className="min-h-8 rounded-lg border border-red-300 text-red-600 px-2.5 text-[11px] font-bold hover:bg-red-50">Cancel</button>
                               </>
                             )}
@@ -597,6 +757,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ services, bookin
                             {(booking.status === 'Confirmed' || booking.status === 'Verified') && booking.date && daysAgo(booking.date) >= REFUND_WAITING_DAYS && (
                               <button onClick={() => updateStatus(booking.id, 'Refunded')} className="min-h-8 rounded-lg bg-orange-500 text-white px-2.5 text-[11px] font-bold hover:bg-orange-600 flex items-center gap-1"><RefreshCw className="w-3 h-3" />Refund</button>
                             )}
+                            <button onClick={() => deleteBooking(booking.id)} className="min-h-8 rounded-lg border border-red-200 text-red-600 px-2.5 text-[11px] font-bold hover:bg-red-50 flex items-center gap-1"><Trash2 className="w-3 h-3" />Delete</button>
                             <a
                               href={buildWhatsAppUrl(booking.clientPhone, `Hi ${booking.clientName}, this is Kay from Tresses by Kay. Regarding your ${booking.service.name} booking on ${booking.date} at ${booking.timeSlot} — `)}
                               target="_blank" rel="noopener noreferrer"
@@ -626,6 +787,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ services, bookin
                           <div>
                             <p className="font-bold">{b.timeSlot} · {b.clientName}</p>
                             <p className="text-xs text-[#665B53] mt-1">{b.service.name}</p>
+                            {b.requestedStylistName && (
+                              <p className="text-[10px] text-[#B88E39] font-bold mt-1">Stylist: {b.requestedStylistName}</p>
+                            )}
                           </div>
                           <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${b.status === 'Verified' ? 'bg-blue-100 text-blue-700' : b.status === 'Confirmed' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>{b.status}</span>
                         </div>
@@ -649,9 +813,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ services, bookin
                 {services.map(service => (
                   <article key={service.id} className="bg-[#FFFDF9] border border-[#DECDBD] rounded-2xl p-5 hover:shadow-md transition-shadow">
                     <div className="flex justify-between gap-4">
-                      <div>
-                        <p className="font-serif text-xl font-bold">{service.name}</p>
-                        <p className="text-xs text-[#9A6F2E] font-bold mt-1">{service.category}</p>
+                      <div className="flex gap-3">
+                        <img src={service.image} alt={service.name} className="w-14 h-14 rounded-xl object-cover border border-[#E5D7C0] shrink-0" />
+                        <div>
+                          <p className="font-serif text-lg font-bold">{service.name}</p>
+                          <p className="text-xs text-[#9A6F2E] font-bold mt-0.5">{service.category}</p>
+                          <p className="text-[10px] text-[#665B53] font-semibold mt-1">Available Stylists count: {service.numberOfStylists || 1}</p>
+                        </div>
                       </div>
                       <div className="text-right">
                         <p className="font-bold">KSh {service.price.toLocaleString()}</p>
@@ -662,6 +830,42 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ services, bookin
                     <div className="flex gap-2 mt-5">
                       <button onClick={() => setEditingService({ ...service })} className="min-h-10 border border-[#DECDBD] rounded-lg px-3 text-xs font-bold hover:bg-[#F7F2EB] transition-colors"><Edit3 className="w-3.5 h-3.5 inline mr-1" />Edit</button>
                       <button onClick={() => removeService(service.id)} className="min-h-10 border border-[#EAB4A6] text-[#A94731] rounded-lg px-3 text-xs font-bold hover:bg-red-50 transition-colors"><Trash2 className="w-3.5 h-3.5 inline mr-1" />Delete</button>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ═══ STYLISTS ═══════════════════════════ */}
+          {panel === 'stylists' && (
+            <div className="space-y-5">
+              <button onClick={() => { setEditingStylist({ ...emptyStylist }); setStylistSpecialtiesStr(''); }} className="min-h-11 bg-[#403833] text-white rounded-xl px-5 text-sm font-bold hover:bg-[#2C2620] transition-colors flex items-center gap-2"><Plus className="w-4 h-4" />Add Stylist</button>
+              <div className="grid md:grid-cols-2 gap-4">
+                {stylists.map(stylist => (
+                  <article key={stylist.id} className="bg-[#FFFDF9] border border-[#DECDBD] rounded-2xl p-5 hover:shadow-md transition-shadow flex gap-4">
+                    <img src={stylist.photo} alt={stylist.name} className="w-20 h-20 rounded-full object-cover border border-[#E5D7C0] shrink-0" />
+                    <div className="flex-1 space-y-2">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h3 className="font-serif text-lg font-bold">{stylist.name}</h3>
+                          <p className="text-xs text-[#9A6F2E] font-bold">{stylist.role}</p>
+                        </div>
+                        <span className="text-xs font-bold bg-[#FAF7F2] border border-[#E5D7C0] px-2 py-0.5 rounded-full">★ {stylist.rating}</span>
+                      </div>
+                      <p className="text-xs text-[#665B53] line-clamp-2">{stylist.bio}</p>
+                      <div className="flex flex-wrap gap-1">
+                        {stylist.specialties.map(spec => (
+                          <span key={spec} className="text-[9px] bg-[#FAF7F2] border border-[#DECDBD] rounded-full px-2 py-0.5 font-semibold text-[#665B53]">{spec}</span>
+                        ))}
+                      </div>
+                      <div className="pt-2 border-t border-[#E5D7C0]/60 flex justify-between items-center">
+                        <span className="text-[10px] text-[#665B53]">Exp: <b>{stylist.experienceYears} Years</b></span>
+                        <div className="flex gap-2">
+                          <button onClick={() => startEditStylist(stylist)} className="min-h-8 border border-[#DECDBD] rounded-lg px-2 text-[10px] font-bold hover:bg-[#F7F2EB] transition-colors"><Edit3 className="w-3 h-3 inline mr-1" />Edit</button>
+                          <button onClick={() => deleteStylist(stylist.id)} className="min-h-8 border border-[#EAB4A6] text-[#A94731] rounded-lg px-2 text-[10px] font-bold hover:bg-red-50 transition-colors"><Trash2 className="w-3 h-3 inline mr-1" />Delete</button>
+                        </div>
+                      </div>
                     </div>
                   </article>
                 ))}
@@ -760,6 +964,189 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ services, bookin
             </section>
           )}
 
+          {/* ═══ PUBLIC PAGES CMS ═══════════════════ */}
+          {panel === 'pages' && (
+            <div className="space-y-6">
+              {!editingPage ? (
+                <section className="bg-[#FFFDF9] border border-[#DECDBD] rounded-3xl p-6">
+                  <h2 className="font-serif text-2xl font-bold">Public pages</h2>
+                  <p className="text-sm text-[#665B53] mt-2">Click any page button below to edit its dynamic titles, images, videos, operating hours, and more.</p>
+                  <div className="mt-5 grid sm:grid-cols-2 gap-3">
+                    {[
+                      { id: 'home', name: 'Home' },
+                      { id: 'services', name: 'Services' },
+                      { id: 'gallery', name: 'Gallery' },
+                      { id: 'contact', name: 'Contact' }
+                    ].map((page) => (
+                      <button
+                        key={page.id}
+                        onClick={() => setEditingPage(page.id as any)}
+                        className="border border-[#EADCCB] rounded-xl p-4 flex items-center justify-between hover:bg-[#FAF7F2]/50 hover:border-[#B88E39] text-left font-bold transition-all"
+                      >
+                        <span>{page.name} Page Editor</span>
+                        <ChevronRight className="w-4 h-4 text-[#9A6F2E]" />
+                      </button>
+                    ))}
+                  </div>
+                </section>
+              ) : (
+                <div className="bg-[#FFFDF9] border border-[#DECDBD] rounded-3xl p-6 space-y-6">
+                  <div className="flex items-center justify-between border-b border-[#EADCCB] pb-4">
+                    <div>
+                      <h2 className="font-serif text-2xl font-bold">Editing {editingPage.toUpperCase()} Page Details</h2>
+                      <p className="text-xs text-[#665B53] mt-1">Changes are saved in local state for live preview.</p>
+                    </div>
+                    <button onClick={() => setEditingPage(null)} className="min-h-10 border border-[#DECDBD] text-xs font-bold px-4 rounded-xl hover:bg-[#F7F2EB] flex items-center gap-1"><ArrowLeft className="w-4 h-4" /> Back to list</button>
+                  </div>
+
+                  {/* ──────────────── HOME CMS ──────────────── */}
+                  {editingPage === 'home' && (
+                    <div className="space-y-4 max-w-3xl">
+                      <label className="admin-field">Hero Notification Text
+                        <input value={localHomeSettings.heroTagline} onChange={e => setLocalHomeSettings({...localHomeSettings, heroTagline: e.target.value})} />
+                      </label>
+                      <label className="admin-field">Hero Heading (Title)
+                        <input value={localHomeSettings.heroTitle} onChange={e => setLocalHomeSettings({...localHomeSettings, heroTitle: e.target.value})} />
+                      </label>
+                      <label className="admin-field">Hero Subtitle Text
+                        <textarea rows={3} value={localHomeSettings.heroSubtitle} onChange={e => setLocalHomeSettings({...localHomeSettings, heroSubtitle: e.target.value})} />
+                      </label>
+                      <label className="admin-field">Hero Intro Video Path / URL
+                        <input value={localHomeSettings.heroVideoUrl} onChange={e => setLocalHomeSettings({...localHomeSettings, heroVideoUrl: e.target.value})} />
+                      </label>
+                      <div className="grid sm:grid-cols-2 gap-4">
+                        <label className="admin-field sm:col-span-2">Brand Quote Text
+                          <textarea rows={3} value={localHomeSettings.brandStoryQuote} onChange={e => setLocalHomeSettings({...localHomeSettings, brandStoryQuote: e.target.value})} />
+                        </label>
+                        <label className="admin-field">Brand Quote Author
+                          <input value={localHomeSettings.brandStoryAuthor} onChange={e => setLocalHomeSettings({...localHomeSettings, brandStoryAuthor: e.target.value})} />
+                        </label>
+                      </div>
+                      <div className="grid sm:grid-cols-2 gap-4">
+                        <label className="admin-field">Bottom Banner Title
+                          <input value={localHomeSettings.ctaTitle} onChange={e => setLocalHomeSettings({...localHomeSettings, ctaTitle: e.target.value})} />
+                        </label>
+                        <label className="admin-field">Bottom Banner Description
+                          <input value={localHomeSettings.ctaSubtitle} onChange={e => setLocalHomeSettings({...localHomeSettings, ctaSubtitle: e.target.value})} />
+                        </label>
+                      </div>
+                      <button onClick={() => savePageChanges('home')} className="mt-4 min-h-12 bg-[#403833] text-white px-6 rounded-xl font-bold hover:bg-[#2C2620]">Save Home Changes</button>
+                    </div>
+                  )}
+
+                  {/* ──────────────── SERVICES CMS ──────────── */}
+                  {editingPage === 'services' && (
+                    <div className="space-y-4 max-w-3xl">
+                      <label className="admin-field">Menu Subtitle Label
+                        <input value={localServicesSettings.introSubtitle} onChange={e => setLocalServicesSettings({...localServicesSettings, introSubtitle: e.target.value})} />
+                      </label>
+                      <label className="admin-field">Menu Heading Title
+                        <input value={localServicesSettings.introTitle} onChange={e => setLocalServicesSettings({...localServicesSettings, introTitle: e.target.value})} />
+                      </label>
+                      <label className="admin-field">Menu Introduction description
+                        <textarea rows={3} value={localServicesSettings.introText} onChange={e => setLocalServicesSettings({...localServicesSettings, introText: e.target.value})} />
+                      </label>
+                      <button onClick={() => savePageChanges('services')} className="mt-4 min-h-12 bg-[#403833] text-white px-6 rounded-xl font-bold hover:bg-[#2C2620]">Save Services Changes</button>
+                    </div>
+                  )}
+
+                  {/* ──────────────── GALLERY CMS ───────────── */}
+                  {editingPage === 'gallery' && (
+                    <div className="space-y-6">
+                      <div className="space-y-4 max-w-3xl">
+                        <h3 className="font-serif text-lg font-bold border-b pb-2">1. Lookbook Headers</h3>
+                        <label className="admin-field">Lookbook Subtitle Label
+                          <input value={localGallerySettings.introSubtitle} onChange={e => setLocalGallerySettings({...localGallerySettings, introSubtitle: e.target.value})} />
+                        </label>
+                        <label className="admin-field">Lookbook Title Heading
+                          <input value={localGallerySettings.introTitle} onChange={e => setLocalGallerySettings({...localGallerySettings, introTitle: e.target.value})} />
+                        </label>
+                        <label className="admin-field">Lookbook Intro description
+                          <textarea rows={3} value={localGallerySettings.introText} onChange={e => setLocalGallerySettings({...localGallerySettings, introText: e.target.value})} />
+                        </label>
+                        <button onClick={() => savePageChanges('gallery')} className="min-h-11 bg-[#403833] text-white px-6 rounded-xl font-bold hover:bg-[#2C2620]">Save Headers</button>
+                      </div>
+
+                      <div className="space-y-4 border-t border-[#E5D7C0] pt-6">
+                        <div className="flex justify-between items-center">
+                          <h3 className="font-serif text-lg font-bold">2. Manage Lookbook Grid Items</h3>
+                          <button onClick={() => setEditingGalleryItem({ ...emptyGalleryItem })} className="min-h-9 bg-[#B88E39] text-white text-xs font-bold px-4 rounded-xl hover:bg-[#9A6F2E] flex items-center gap-1"><Plus className="w-3.5 h-3.5" /> Add Lookbook Item</button>
+                        </div>
+
+                        <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4">
+                          {galleryItems.map(item => (
+                            <div key={item.id} className="bg-[#FAF7F2] border border-[#DECDBD] rounded-xl overflow-hidden p-3 flex flex-col justify-between space-y-3">
+                              <div className="space-y-2">
+                                <div className="relative aspect-square rounded-lg overflow-hidden bg-[#403833]">
+                                  {item.videoUrl ? (
+                                    <video src={item.videoUrl} className="w-full h-full object-cover" controls />
+                                  ) : (
+                                    <img src={item.image} alt={item.title} className="w-full h-full object-cover" />
+                                  )}
+                                  <span className="absolute top-2 left-2 bg-[#FAF7F2] text-[#B88E39] border border-[#DECDBD] text-[9px] font-bold px-2 py-0.5 rounded-full">{item.category}</span>
+                                </div>
+                                <h4 className="font-bold text-xs line-clamp-1">{item.title}</h4>
+                                <p className="text-[10px] text-[#665B53] font-medium">Stylist: {item.stylistName}</p>
+                                {item.isBeforeAfter && <span className="text-[9px] font-bold text-purple-700 bg-purple-50 border border-purple-200 px-2 py-0.5 rounded-full">Before & After</span>}
+                              </div>
+                              <div className="flex gap-2 pt-2 border-t border-[#DECDBD]">
+                                <button onClick={() => setEditingGalleryItem(item)} className="flex-1 min-h-8 border border-[#DECDBD] rounded-lg text-[10px] font-bold hover:bg-[#F7F2EB] flex items-center justify-center gap-1"><Edit3 className="w-3 h-3" />Edit</button>
+                                <button onClick={() => deleteGalleryItem(item.id)} className="flex-1 min-h-8 border border-red-200 text-red-600 rounded-lg text-[10px] font-bold hover:bg-red-50 flex items-center justify-center gap-1"><Trash2 className="w-3 h-3" />Delete</button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ──────────────── CONTACT CMS ───────────── */}
+                  {editingPage === 'contact' && (
+                    <div className="space-y-4 max-w-3xl">
+                      <label className="admin-field">Welcome Title
+                        <input value={localContactSettings.introTitle} onChange={e => setLocalContactSettings({...localContactSettings, introTitle: e.target.value})} />
+                      </label>
+                      <label className="admin-field">Welcome Text Description
+                        <textarea rows={3} value={localContactSettings.introText} onChange={e => setLocalContactSettings({...localContactSettings, introText: e.target.value})} />
+                      </label>
+                      <div className="grid sm:grid-cols-2 gap-4">
+                        <label className="admin-field">Atelier Room Address
+                          <input value={localContactSettings.address} onChange={e => setLocalContactSettings({...localContactSettings, address: e.target.value})} />
+                        </label>
+                        <label className="admin-field">Support Phone Number
+                          <input value={localContactSettings.phone} onChange={e => setLocalContactSettings({...localContactSettings, phone: e.target.value})} />
+                        </label>
+                      </div>
+                      <div className="grid sm:grid-cols-2 gap-4">
+                        <label className="admin-field">Atelier Support Email
+                          <input value={localContactSettings.email} onChange={e => setLocalContactSettings({...localContactSettings, email: e.target.value})} />
+                        </label>
+                        <label className="admin-field">WhatsApp URL or Direct Number
+                          <input value={localContactSettings.whatsappNumber} onChange={e => setLocalContactSettings({...localContactSettings, whatsappNumber: e.target.value})} />
+                        </label>
+                      </div>
+                      <label className="admin-field">Google Maps iframe Embed source URL
+                        <input value={localContactSettings.mapsEmbedUrl} onChange={e => setLocalContactSettings({...localContactSettings, mapsEmbedUrl: e.target.value})} />
+                      </label>
+                      <div className="grid sm:grid-cols-3 gap-3 border-t pt-4">
+                        <label className="admin-field">Mon-Fri Hours
+                          <input value={localContactSettings.hoursMonFri} onChange={e => setLocalContactSettings({...localContactSettings, hoursMonFri: e.target.value})} />
+                        </label>
+                        <label className="admin-field">Saturday Hours
+                          <input value={localContactSettings.hoursSat} onChange={e => setLocalContactSettings({...localContactSettings, hoursSat: e.target.value})} />
+                        </label>
+                        <label className="admin-field">Sunday Hours
+                          <input value={localContactSettings.hoursSun} onChange={e => setLocalContactSettings({...localContactSettings, hoursSun: e.target.value})} />
+                        </label>
+                      </div>
+                      <button onClick={() => savePageChanges('contact')} className="mt-4 min-h-12 bg-[#403833] text-white px-6 rounded-xl font-bold hover:bg-[#2C2620]">Save Contact Changes</button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* ═══ SETTINGS ═══════════════════════════ */}
           {panel === 'settings' && (
             <div className="space-y-6 max-w-2xl">
@@ -800,15 +1187,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ services, bookin
                 </div>
                 <p className="text-xs text-[#665B53]">To update credentials, modify the admin constants in the source code. Firebase Auth integration is recommended for production.</p>
               </section>
-
-              <section className="bg-[#FFFDF9] border border-[#DECDBD] rounded-3xl p-6 space-y-4">
-                <h2 className="font-serif text-2xl font-bold">Contact & Support</h2>
-                <div className="bg-[#F7F2EB] rounded-xl p-4 space-y-2">
-                  <p className="text-sm"><strong>Email:</strong> trassesbykay6@gmail.com</p>
-                  <p className="text-sm"><strong>WhatsApp:</strong> +254 011 883 1488</p>
-                  <p className="text-sm"><strong>Location:</strong> JKUAT Towers, Kenyatta Ave, Nairobi</p>
-                </div>
-              </section>
             </div>
           )}
         </main>
@@ -818,19 +1196,119 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ services, bookin
       {editingService && (
         <div className="fixed inset-0 z-50 p-4 grid place-items-center bg-[#2F2924]/50 backdrop-blur-sm">
           <form onSubmit={saveService} className="w-full max-w-xl max-h-[90vh] overflow-y-auto bg-[#FFFDF9] rounded-3xl p-6 shadow-2xl">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between border-b pb-3 mb-5">
               <h2 className="font-serif text-2xl font-bold">{editingService.id ? 'Edit service' : 'Add service'}</h2>
               <button type="button" onClick={() => setEditingService(null)} className="p-2 hover:bg-[#F7F2EB] rounded-xl transition-colors"><X className="w-5 h-5" /></button>
             </div>
-            <div className="grid sm:grid-cols-2 gap-4 mt-5">
-              <label className="admin-field sm:col-span-2">Service name<input required value={editingService.name} onChange={e => setEditingService({ ...editingService, name: e.target.value })} /></label>
-              <label className="admin-field">Category<select value={editingService.category} onChange={e => setEditingService({ ...editingService, category: e.target.value as ServiceCategory })}>{categories.map(c => <option key={c}>{c}</option>)}</select></label>
-              <label className="admin-field">Price (KSh)<input required min="0" type="number" value={editingService.price} onChange={e => setEditingService({ ...editingService, price: Number(e.target.value) })} /></label>
-              <label className="admin-field">Duration (minutes)<input required min="15" step="15" type="number" value={editingService.durationMinutes} onChange={e => setEditingService({ ...editingService, durationMinutes: Number(e.target.value) })} /></label>
-              <label className="admin-field">Stylist<input required value={editingService.stylistName} onChange={e => setEditingService({ ...editingService, stylistName: e.target.value })} /></label>
-              <label className="admin-field sm:col-span-2">Description<textarea required rows={4} value={editingService.description} onChange={e => setEditingService({ ...editingService, description: e.target.value })} /></label>
+            <div className="grid sm:grid-cols-2 gap-4">
+              <label className="admin-field sm:col-span-2">Service name
+                <input required value={editingService.name} onChange={e => setEditingService({ ...editingService, name: e.target.value })} />
+              </label>
+              <label className="admin-field">Category
+                <select value={editingService.category} onChange={e => setEditingService({ ...editingService, category: e.target.value as ServiceCategory })}>{categories.map(c => <option key={c}>{c}</option>)}</select>
+              </label>
+              <label className="admin-field">Price (KSh)
+                <input required min="0" type="number" value={editingService.price} onChange={e => setEditingService({ ...editingService, price: Number(e.target.value) })} />
+              </label>
+              <label className="admin-field">Duration (minutes)
+                <input required min="15" step="15" type="number" value={editingService.durationMinutes} onChange={e => setEditingService({ ...editingService, durationMinutes: Number(e.target.value) })} />
+              </label>
+              <label className="admin-field">Stylists Count (Number of stylists performing this style)
+                <input min="1" type="number" value={editingService.numberOfStylists || 1} onChange={e => setEditingService({ ...editingService, numberOfStylists: Number(e.target.value) })} />
+              </label>
+              <label className="admin-field sm:col-span-2">Service Image Path / URL
+                <input placeholder="e.g. /media/gallery/some-pic.webp" value={editingService.image} onChange={e => setEditingService({ ...editingService, image: e.target.value })} />
+              </label>
+              <label className="admin-field sm:col-span-2">Description
+                <textarea required rows={4} value={editingService.description} onChange={e => setEditingService({ ...editingService, description: e.target.value })} />
+              </label>
             </div>
             <button className="mt-6 w-full min-h-12 rounded-xl bg-[#403833] text-white font-bold hover:bg-[#2C2620] transition-colors">Save service</button>
+          </form>
+        </div>
+      )}
+
+      {/* ═══ EDIT STYLIST MODAL ═══════════════════ */}
+      {editingStylist && (
+        <div className="fixed inset-0 z-50 p-4 grid place-items-center bg-[#2F2924]/50 backdrop-blur-sm">
+          <form onSubmit={saveStylist} className="w-full max-w-xl max-h-[90vh] overflow-y-auto bg-[#FFFDF9] rounded-3xl p-6 shadow-2xl">
+            <div className="flex items-center justify-between border-b pb-3 mb-5">
+              <h2 className="font-serif text-2xl font-bold">{editingStylist.id ? 'Edit Stylist' : 'Add Stylist'}</h2>
+              <button type="button" onClick={() => setEditingStylist(null)} className="p-2 hover:bg-[#F7F2EB] rounded-xl transition-colors"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="grid sm:grid-cols-2 gap-4">
+              <label className="admin-field sm:col-span-2">Stylist Name
+                <input required value={editingStylist.name} onChange={e => setEditingStylist({ ...editingStylist, name: e.target.value })} />
+              </label>
+              <label className="admin-field">Role / Job Title
+                <input required placeholder="e.g. Lead Braid Artisan" value={editingStylist.role} onChange={e => setEditingStylist({ ...editingStylist, role: e.target.value })} />
+              </label>
+              <label className="admin-field">Experience Years
+                <input required type="number" min="0" value={editingStylist.experienceYears} onChange={e => setEditingStylist({ ...editingStylist, experienceYears: Number(e.target.value) })} />
+              </label>
+              <label className="admin-field sm:col-span-2">Photo Path / URL
+                <input placeholder="e.g. /media/kay-founder.webp" value={editingStylist.photo} onChange={e => setEditingStylist({ ...editingStylist, photo: e.target.value })} />
+              </label>
+              <label className="admin-field sm:col-span-2">Specialties (comma separated)
+                <input required placeholder="e.g. Knotless Braids, Boho Goddess, Cornrows" value={stylistSpecialtiesStr} onChange={e => setStylistSpecialtiesStr(e.target.value)} />
+              </label>
+              <label className="admin-field sm:col-span-2">Bio Description
+                <textarea required rows={3} value={editingStylist.bio} onChange={e => setEditingStylist({ ...editingStylist, bio: e.target.value })} />
+              </label>
+            </div>
+            <button className="mt-6 w-full min-h-12 rounded-xl bg-[#403833] text-white font-bold hover:bg-[#2C2620] transition-colors">Save Stylist</button>
+          </form>
+        </div>
+      )}
+
+      {/* ═══ EDIT GALLERY ITEM MODAL ═══════════════ */}
+      {editingGalleryItem && (
+        <div className="fixed inset-0 z-50 p-4 grid place-items-center bg-[#2F2924]/50 backdrop-blur-sm">
+          <form onSubmit={saveGalleryItem} className="w-full max-w-xl max-h-[90vh] overflow-y-auto bg-[#FFFDF9] rounded-3xl p-6 shadow-2xl">
+            <div className="flex items-center justify-between border-b pb-3 mb-5">
+              <h2 className="font-serif text-2xl font-bold">{editingGalleryItem.id ? 'Edit Lookbook Item' : 'Add Lookbook Item'}</h2>
+              <button type="button" onClick={() => setEditingGalleryItem(null)} className="p-2 hover:bg-[#F7F2EB] rounded-xl transition-colors"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="grid sm:grid-cols-2 gap-4">
+              <label className="admin-field sm:col-span-2">Title Description
+                <input required value={editingGalleryItem.title} onChange={e => setEditingGalleryItem({ ...editingGalleryItem, title: e.target.value })} />
+              </label>
+              <label className="admin-field">Category
+                <select value={editingGalleryItem.category} onChange={e => setEditingGalleryItem({ ...editingGalleryItem, category: e.target.value as any })}>
+                  {categories.map(c => <option key={c}>{c}</option>)}
+                  <option value="Videos">Videos</option>
+                </select>
+              </label>
+              <label className="admin-field">Stylist Name
+                <select value={editingGalleryItem.stylistName} onChange={e => setEditingGalleryItem({ ...editingGalleryItem, stylistName: e.target.value })}>
+                  {stylists.map(st => <option key={st.id} value={st.name}>{st.name}</option>)}
+                </select>
+              </label>
+              <label className="admin-field sm:col-span-2">Primary Image URL
+                <input required placeholder="e.g. /media/gallery/some-pic.webp" value={editingGalleryItem.image} onChange={e => setEditingGalleryItem({ ...editingGalleryItem, image: e.target.value })} />
+              </label>
+              <label className="admin-field sm:col-span-2">Video URL (only if Category is Videos)
+                <input placeholder="e.g. https://assets.mixkit.co/..." value={editingGalleryItem.videoUrl} onChange={e => setEditingGalleryItem({ ...editingGalleryItem, videoUrl: e.target.value })} />
+              </label>
+
+              <div className="sm:col-span-2 border border-[#E5D7C0] rounded-2xl p-4 space-y-3">
+                <label className="flex items-center gap-2 text-xs font-bold select-none">
+                  <input type="checkbox" checked={editingGalleryItem.isBeforeAfter} onChange={e => setEditingGalleryItem({ ...editingGalleryItem, isBeforeAfter: e.target.checked })} />
+                  Include Before & After Comparison Photos
+                </label>
+                {editingGalleryItem.isBeforeAfter && (
+                  <div className="grid sm:grid-cols-2 gap-3 pt-2">
+                    <label className="admin-field">Before Image Path / URL
+                      <input required value={editingGalleryItem.beforeImage} onChange={e => setEditingGalleryItem({ ...editingGalleryItem, beforeImage: e.target.value })} />
+                    </label>
+                    <label className="admin-field">After Image Path / URL
+                      <input required value={editingGalleryItem.afterImage} onChange={e => setEditingGalleryItem({ ...editingGalleryItem, afterImage: e.target.value })} />
+                    </label>
+                  </div>
+                )}
+              </div>
+            </div>
+            <button className="mt-6 w-full min-h-12 rounded-xl bg-[#403833] text-white font-bold hover:bg-[#2C2620] transition-colors">Save Lookbook Item</button>
           </form>
         </div>
       )}

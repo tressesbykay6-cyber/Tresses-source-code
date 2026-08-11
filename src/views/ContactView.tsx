@@ -4,12 +4,18 @@ import { Review } from '../types';
 import { MOCK_REVIEWS } from '../data/mockData';
 import { useScrollReveal } from '../hooks/useScrollReveal';
 
-export const ContactView: React.FC = () => {
+interface ContactViewProps {
+  pageSettings: any;
+}
+
+export const ContactView: React.FC<ContactViewProps> = ({ pageSettings }) => {
   const [formSubmitted, setFormSubmitted] = useState(false);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [message, setMessage] = useState('');
   const [qaComments, setQaComments] = useState<any[]>([]);
+
+  const contactSettings = pageSettings?.contact || {};
 
   useEffect(() => {
     const loadComments = () => {
@@ -115,14 +121,14 @@ export const ContactView: React.FC = () => {
           <Sparkles className="w-4 h-4" /> About Us • Contact • Client Reviews
         </span>
         <h1 className="font-serif text-4xl sm:text-5xl font-bold text-[#1C1814]">
-          Welcome to Tresses by Kay
+          {contactSettings.introTitle || "Welcome to Tresses by Kay"}
         </h1>
         <p className="text-sm text-[#5C5247] font-light leading-relaxed">
-          Nairobi’s premier boutique beauty atelier. Located at JKUAT Towers on Kenyatta Avenue, offering in-studio styling and mobile housecalls across Nairobi.
+          {contactSettings.introText || "Nairobi’s premier boutique beauty atelier. Located at JKUAT Towers on Kenyatta Avenue, offering in-studio styling and mobile housecalls across Nairobi."}
         </p>
       </div>
 
-      {/* 2. ABOUT US & ATELIER HERITAGE SECTION (Folded into Contact page) */}
+      {/* 2. ABOUT US & ATELIER HERITAGE SECTION */}
       <section className="reveal reveal-up bg-[#FFFDF9] border border-[#E5D7C0] rounded-3xl p-8 sm:p-12 shadow-sm relative overflow-hidden">
         <div className="absolute -right-20 -top-20 w-80 h-80 bg-[#F8E2C2]/40 rounded-full blur-3xl pointer-events-none" />
         
@@ -191,7 +197,7 @@ export const ContactView: React.FC = () => {
       {/* 3. LOCATION & CONTACT FORM GRID */}
       <section className="reveal reveal-up grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         
-        {/* Left Column: Location, Direct Action Buttons & Hours Table (6 cols) */}
+        {/* Left Column: Location, Direct Action Buttons & Hours Table */}
         <div className="lg:col-span-6 space-y-6">
           
           {/* Location Details Card */}
@@ -205,7 +211,7 @@ export const ContactView: React.FC = () => {
                   JKUAT Towers Atelier
                 </h3>
                 <p className="text-sm text-[#5C5247] mt-0.5">
-                  Kenyatta Ave, Mezzanine Floor, Shop M08
+                  {contactSettings.address || "Kenyatta Ave, Mezzanine Floor, Shop M08"}
                 </p>
                 <p className="text-xs text-[#B88E39] mt-1 font-bold">
                   Nairobi CBD, Kenya (00100)
@@ -216,15 +222,15 @@ export const ContactView: React.FC = () => {
             {/* Click to call / WhatsApp CTA buttons */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
               <a
-                href="tel:+254118831488"
+                href={`tel:${contactSettings.phone || "+254118831488"}`}
                 className="bg-[#1C1814] hover:bg-[#2C2620] text-[#FAF7F2] p-3 rounded-2xl flex items-center justify-center gap-2 text-xs font-bold transition-all shadow-sm"
               >
                 <Phone className="w-4 h-4 text-[#B88E39]" />
-                <span>Call +254 011 883 1488</span>
+                <span>Call {contactSettings.phone || "+254 011 883 1488"}</span>
               </a>
 
               <a
-                href="https://wa.me/254118831488?text=Hi%2C%20I'd%20like%20to%20inquire%20about%20an%20appointment"
+                href={`https://wa.me/${contactSettings.whatsappNumber || "254118831488"}?text=Hi%2C%20I'd%20like%20to%20inquire%20about%20an%20appointment`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="bg-[#B88E39] hover:bg-[#A37B2C] text-[#FAF7F2] p-3 rounded-2xl flex items-center justify-center gap-2 text-xs font-bold transition-all shadow-sm"
@@ -234,11 +240,11 @@ export const ContactView: React.FC = () => {
               </a>
 
               <a
-                href="mailto:trassesbykay6@gmail.com"
+                href={`mailto:${contactSettings.email || "trassesbykay6@gmail.com"}`}
                 className="bg-[#FAF7F2] hover:bg-[#F8E2C2]/30 border border-[#E5D7C0] text-[#1C1814] p-3 rounded-2xl flex items-center justify-center gap-2 text-xs font-bold transition-all shadow-sm col-span-1 sm:col-span-2"
               >
                 <Mail className="w-4 h-4 text-[#B88E39]" />
-                <span>Email: trassesbykay6@gmail.com</span>
+                <span>Email: {contactSettings.email || "trassesbykay6@gmail.com"}</span>
               </a>
             </div>
           </div>
@@ -253,15 +259,15 @@ export const ContactView: React.FC = () => {
             <div className="space-y-2.5 text-xs divide-y divide-[#E5D7C0]/60">
               <div className="flex justify-between pt-2">
                 <span className="text-[#5C5247] font-medium">Monday – Friday</span>
-                <span className="font-bold text-[#1C1814]">8:30 AM – 6:00 PM</span>
+                <span className="font-bold text-[#1C1814]">{contactSettings.hoursMonFri || "8:30 AM – 6:00 PM"}</span>
               </div>
               <div className="flex justify-between pt-2">
                 <span className="text-[#5C5247] font-medium">Saturday</span>
-                <span className="font-bold text-[#1C1814]">8:30 AM – 6:00 PM</span>
+                <span className="font-bold text-[#1C1814]">{contactSettings.hoursSat || "8:30 AM – 6:00 PM"}</span>
               </div>
               <div className="flex justify-between pt-2">
-                <span className="text-[#B88E39] font-bold">Sunday</span>
-                <span className="font-bold text-[#B88E39]">Closed for Rest & Prep</span>
+                <span className="text-[#B88E39] font-bold font-medium">Sunday</span>
+                <span className="font-bold text-[#B88E39]">{contactSettings.hoursSun || "Closed for Rest & Prep"}</span>
               </div>
             </div>
           </div>
@@ -270,18 +276,18 @@ export const ContactView: React.FC = () => {
           <div className="bg-[#FFFDF9] rounded-3xl overflow-hidden border border-[#E5D7C0] aspect-[16/9] relative group shadow-sm">
             <iframe
               title="JKUAT Towers Map Location"
-              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3988.817294436214!2d36.8202!3d-1.2847!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x182f10d7a6e76811%3A0x62955f13fa1458e3!2sJKUAT%20Towers%2C%20Kenyatta%20Ave%2C%20Nairobi!5e0!3m2!1sen!2ske!4v1700000000000!5m2!1sen!2ske"
+              src={contactSettings.mapsEmbedUrl || "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3988.817294436214!2d36.8202!3d-1.2847!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x182f10d7a6e76811%3A0x62955f13fa1458e3!2sJKUAT%20Towers%2C%20Kenyatta%20Ave%2C%20Nairobi!5e0!3m2!1sen!2ske!4v1700000000000!5m2!1sen!2ske"}
               className="w-full h-full border-0 group-hover:contrast-105 transition-all"
               loading="lazy"
             />
             <div className="absolute top-3 left-3 bg-[#FAF7F2]/95 text-[#1C1814] text-xs font-bold px-3.5 py-1.5 rounded-full border border-[#E5D7C0] shadow-md backdrop-blur-md flex items-center gap-1.5">
-              <span>📍 JKUAT Towers, Mezzanine M08</span>
+              <span>📍 {contactSettings.address || "JKUAT Towers, Mezzanine M08"}</span>
             </div>
           </div>
 
         </div>
 
-        {/* Right Column: Contact Inquiry Form (6 cols) */}
+        {/* Right Column: Contact Inquiry Form */}
         <div className="lg:col-span-6 bg-[#FFFDF9] p-8 rounded-3xl border border-[#E5D7C0] shadow-sm space-y-6">
           <div>
             <span className="text-xs uppercase tracking-widest text-[#B88E39] font-bold">Inquiries & Consultations</span>
@@ -357,7 +363,7 @@ export const ContactView: React.FC = () => {
 
       </section>
 
-      {/* 4. CLIENT REVIEWS & TESTIMONIALS SECTION (Folded into Contact page) */}
+      {/* 4. CLIENT REVIEWS & TESTIMONIALS SECTION */}
       <section className="space-y-8 pt-8 border-t border-[#E5D7C0]">
         
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">

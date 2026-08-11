@@ -12,8 +12,43 @@ import { AdminBooking, AdminDashboard } from './views/AdminDashboard';
 import { PrivacyPolicyView } from './views/PrivacyPolicyView';
 import { TermsOfServiceView } from './views/TermsOfServiceView';
 
-import { Service } from './types';
-import { MOCK_SERVICES, MOCK_GALLERY, MOCK_REVIEWS } from './data/mockData';
+import { Service, Stylist, GalleryItem } from './types';
+import { MOCK_SERVICES, MOCK_GALLERY, MOCK_REVIEWS, MOCK_STYLISTS } from './data/mockData';
+
+const DEFAULT_PAGE_SETTINGS = {
+  home: {
+    heroTitle: "Your crown, styled to perfection.",
+    heroTagline: "Nairobi’s Boutique Beauty Atelier • JKUAT Towers & Mobile Housecalls",
+    heroSubtitle: "Nairobi’s boutique studio for knotless braids, HD wig installs, custom color, and bridal glams — book your in-studio seat or mobile housecall in minutes.",
+    heroVideoUrl: "/media/hero-intro.mp4",
+    brandStoryQuote: "“Tresses by Kay is a Nairobi hair and beauty studio built on precision, warmth, and craft. From knotless braids to bridal makeup, every appointment is treated as an occasion — not just a service.”",
+    brandStoryAuthor: "— Kay, Founder & Master Stylist",
+    ctaTitle: "Ready for your transformation?",
+    ctaSubtitle: "Visit us at JKUAT Towers, Kenyatta Ave or request a mobile housecall. Seats book quickly — reserve your spot with a 30% M-Pesa deposit."
+  },
+  services: {
+    introSubtitle: "The Menu",
+    introTitle: "Curated Atelier Services",
+    introText: "From precise knotless braids to flawless HD wig installs, discover the signature transformations crafted by Kay."
+  },
+  gallery: {
+    introSubtitle: "Visual Lookbook",
+    introTitle: "The Style Grid",
+    introText: "A curated, fast-loading collection of real Tresses by Kay transformations. Every image is delivered as modern WebP; every reel is reduced for mobile playback."
+  },
+  contact: {
+    introTitle: "Welcome to Tresses by Kay",
+    introText: "Nairobi’s premier boutique beauty atelier. Located at JKUAT Towers on Kenyatta Avenue, offering in-studio styling and mobile housecalls across Nairobi.",
+    address: "Kenyatta Ave, Mezzanine Floor, Shop M08",
+    phone: "+254 011 883 1488",
+    email: "trassesbykay6@gmail.com",
+    whatsappNumber: "+254118831488",
+    mapsEmbedUrl: "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3988.817294436214!2d36.8202!3d-1.2847!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x182f10d7a6e76811%3A0x62955f13fa1458e3!2sJKUAT%20Towers%2C%20Kenyatta%20Ave%2C%20Nairobi!5e0!3m2!1sen!2ske!4v1700000000000!5m2!1sen!2ske",
+    hoursMonFri: "8:30 AM – 6:00 PM",
+    hoursSat: "8:30 AM – 6:00 PM",
+    hoursSun: "Closed for Rest & Prep"
+  }
+};
 
 export default function App() {
   // Home, services, gallery, and contact are the only customer-facing pages.
@@ -27,6 +62,27 @@ export default function App() {
       return JSON.parse(localStorage.getItem('tresses-services') || 'null') || MOCK_SERVICES;
     } catch {
       return MOCK_SERVICES;
+    }
+  });
+  const [stylists, setStylists] = useState<Stylist[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('tresses-stylists') || 'null') || MOCK_STYLISTS;
+    } catch {
+      return MOCK_STYLISTS;
+    }
+  });
+  const [galleryItems, setGalleryItems] = useState<GalleryItem[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('tresses-gallery') || 'null') || MOCK_GALLERY;
+    } catch {
+      return MOCK_GALLERY;
+    }
+  });
+  const [pageSettings, setPageSettings] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('tresses-page-settings') || 'null') || DEFAULT_PAGE_SETTINGS;
+    } catch {
+      return DEFAULT_PAGE_SETTINGS;
     }
   });
   const [bookings, setBookings] = useState<AdminBooking[]>(() => {
@@ -65,6 +121,18 @@ export default function App() {
   }, [bookings]);
 
   useEffect(() => {
+    localStorage.setItem('tresses-stylists', JSON.stringify(stylists));
+  }, [stylists]);
+
+  useEffect(() => {
+    localStorage.setItem('tresses-gallery', JSON.stringify(galleryItems));
+  }, [galleryItems]);
+
+  useEffect(() => {
+    localStorage.setItem('tresses-page-settings', JSON.stringify(pageSettings));
+  }, [pageSettings]);
+
+  useEffect(() => {
     const syncAdminRoute = () => setAdminOpen(window.location.hash === '#admin');
     window.addEventListener('hashchange', syncAdminRoute);
     return () => window.removeEventListener('hashchange', syncAdminRoute);
@@ -75,7 +143,21 @@ export default function App() {
   };
 
   if (adminOpen) {
-    return <AdminDashboard services={services} bookings={bookings} onServicesChange={setServices} onBookingsChange={setBookings} onExit={() => { window.location.hash = ''; }} />;
+    return (
+      <AdminDashboard
+        services={services}
+        bookings={bookings}
+        onServicesChange={setServices}
+        onBookingsChange={setBookings}
+        stylists={stylists}
+        onStylistsChange={setStylists}
+        galleryItems={galleryItems}
+        onGalleryItemsChange={setGalleryItems}
+        pageSettings={pageSettings}
+        onPageSettingsChange={setPageSettings}
+        onExit={() => { window.location.hash = ''; }}
+      />
+    );
   }
 
   return (
@@ -97,7 +179,8 @@ export default function App() {
           <HomeView
             services={services}
             reviews={MOCK_REVIEWS}
-            galleryItems={MOCK_GALLERY}
+            galleryItems={galleryItems}
+            pageSettings={pageSettings}
             onOpenBooking={handleOpenBooking}
             onNavigate={setActiveSection}
           />
@@ -107,6 +190,7 @@ export default function App() {
           <ServicesView
             services={services}
             reviews={MOCK_REVIEWS}
+            pageSettings={pageSettings}
             onOpenBooking={handleOpenBooking}
             onNavigate={setActiveSection}
           />
@@ -114,12 +198,16 @@ export default function App() {
 
         {activeSection === 'gallery' && (
           <GalleryView
+            galleryItems={galleryItems}
+            pageSettings={pageSettings}
             onOpenBooking={() => handleOpenBooking()}
           />
         )}
 
         {activeSection === 'contact' && (
-          <ContactView />
+          <ContactView
+            pageSettings={pageSettings}
+          />
         )}
 
         {activeSection === 'privacy' && (
@@ -146,6 +234,7 @@ export default function App() {
         onClose={() => setIsBookingOpen(false)}
         preselectedService={preselectedService}
         services={services}
+        stylists={stylists}
         onBookingComplete={handleBookingComplete}
       />
 

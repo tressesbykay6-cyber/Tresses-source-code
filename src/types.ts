@@ -14,6 +14,7 @@ export interface Service {
   image: string;
   description: string;
   depositAmount: number; // in KSh
+  numberOfStylists?: number;
 }
 
 export interface Stylist {
@@ -74,15 +75,17 @@ export interface Review {
 export interface Booking {
   id: string;
   service: Service;
-  stylist: Stylist;
+  stylist?: Stylist;
+  requestedStylistName?: string;
   date: string;
   timeSlot: string;
   depositPaid: number;
   totalPrice: number;
-  status: 'Confirmed' | 'Pending' | 'Completed' | 'Cancelled';
+  status: 'Confirmed' | 'Pending' | 'Completed' | 'Cancelled' | 'Verified' | 'Refunded';
   clientName: string;
   clientPhone: string;
   notes?: string;
+  durationMinutes: number;
 }
 
 export interface LoyaltyAccount {

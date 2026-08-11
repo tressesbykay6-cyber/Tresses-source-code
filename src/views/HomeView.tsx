@@ -7,14 +7,17 @@ interface HomeViewProps {
   services: Service[];
   reviews: Review[];
   galleryItems: GalleryItem[];
+  pageSettings: any;
   onOpenBooking: (service?: Service) => void;
   onNavigate: (section: string) => void;
 }
 
 export const HomeView: React.FC<HomeViewProps> = ({
+  pageSettings,
   onOpenBooking,
 }) => {
   const revealRef = useScrollReveal();
+  const homeSettings = pageSettings?.home || {};
 
   return (
     <div ref={revealRef} className="space-y-16 sm:space-y-24 pt-4 animate-fade-in">
@@ -24,13 +27,14 @@ export const HomeView: React.FC<HomeViewProps> = ({
         
         {/* Single Intro Video Background */}
         <video
+          key={homeSettings.heroVideoUrl}
           autoPlay
           muted
           loop
           playsInline
           className="absolute inset-0 w-full h-full object-cover -z-10 opacity-[0.38] brightness-90 contrast-125 sepia-[.10] scale-100 transition-transform duration-1000"
         >
-          <source src="/media/hero-intro.mp4" type="video/mp4" />
+          <source src={homeSettings.heroVideoUrl || "/media/hero-intro.mp4"} type="video/mp4" />
         </video>
 
         {/* Soft Glowing Background Halos */}
@@ -42,18 +46,15 @@ export const HomeView: React.FC<HomeViewProps> = ({
           
           <div className="reveal reveal-scale inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#FFFDF9] border border-[#B88E39]/40 text-[#B88E39] text-xs font-bold shadow-sm backdrop-blur-md">
             <Sparkles className="w-3.5 h-3.5 text-[#B88E39] animate-pulse" />
-            <span>Nairobi’s Boutique Beauty Atelier • JKUAT Towers & Mobile Housecalls</span>
+            <span>{homeSettings.heroTagline || "Nairobi’s Boutique Beauty Atelier • JKUAT Towers & Mobile Housecalls"}</span>
           </div>
 
           <h1 className="reveal reveal-up reveal-delay-1 font-serif text-4xl sm:text-6xl lg:text-7xl font-bold text-[#1C1814] leading-[1.1] tracking-tight max-w-4xl mx-auto">
-            Your crown, <br className="hidden sm:block" />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#1C1814] via-[#B88E39] to-[#1C1814] text-gradient-animate">
-              styled to perfection.
-            </span>
+            {homeSettings.heroTitle || "Your crown, styled to perfection."}
           </h1>
 
           <p className="reveal reveal-up reveal-delay-2 font-sans text-base sm:text-lg text-[#5C5247] font-light max-w-2xl mx-auto leading-relaxed">
-            Nairobi’s boutique studio for knotless braids, HD wig installs, custom color, and bridal glams — book your in-studio seat or mobile housecall in minutes.
+            {homeSettings.heroSubtitle || "Nairobi’s boutique studio for knotless braids, HD wig installs, custom color, and bridal glams — book your in-studio seat or mobile housecall in minutes."}
           </p>
 
           <div className="reveal reveal-up reveal-delay-3 flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
@@ -86,11 +87,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
         </div>
 
         <blockquote className="font-serif text-2xl sm:text-3xl font-normal text-[#1C1814] leading-relaxed italic">
-          “Tresses by Kay is a Nairobi hair and beauty studio built on precision, warmth, and craft. From knotless braids to bridal makeup, every appointment is treated as an occasion — not just a service.”
+          {homeSettings.brandStoryQuote || "“Tresses by Kay is a Nairobi hair and beauty studio built on precision, warmth, and craft. From knotless braids to bridal makeup, every appointment is treated as an occasion — not just a service.”"}
         </blockquote>
 
-        <p className="text-xs uppercase tracking-widest text-[#B88E39] font-bold tracking-widest">
-          — Kay, Founder & Master Stylist
+        <p className="text-xs uppercase tracking-widest text-[#B88E39] font-bold">
+          {homeSettings.brandStoryAuthor || "— Kay, Founder & Master Stylist"}
         </p>
       </section>
 
@@ -102,10 +103,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
           <div className="max-w-2xl mx-auto space-y-3 relative z-10">
             <h2 className="font-serif text-3xl sm:text-5xl font-bold">
-              Ready for your transformation?
+              {homeSettings.ctaTitle || "Ready for your transformation?"}
             </h2>
             <p className="text-sm font-medium opacity-90 text-[#FAF7F2]/80 font-light">
-              Visit us at JKUAT Towers, Kenyatta Ave or request a mobile housecall. Seats book quickly — reserve your spot with a 30% M-Pesa deposit.
+              {homeSettings.ctaSubtitle || "Visit us at JKUAT Towers, Kenyatta Ave or request a mobile housecall. Seats book quickly — reserve your spot with a 30% M-Pesa deposit."}
             </p>
           </div>
 
