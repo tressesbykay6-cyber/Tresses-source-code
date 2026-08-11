@@ -203,11 +203,11 @@ export const ContactView: React.FC<ContactViewProps> = ({ pageSettings }) => {
               </a>
 
               <a
-                href={`mailto:${contactSettings.email || "trassesbykay6@gmail.com"}`}
+                href={`mailto:${contactSettings.email || "tressesbykay6@gmail.com"}`}
                 className="bg-[#FAF7F2] hover:bg-[#F8E2C2]/30 border border-[#E5D7C0] text-[#1C1814] p-3 rounded-2xl flex items-center justify-center gap-2 text-xs font-bold transition-all shadow-sm col-span-1 sm:col-span-2"
               >
                 <Mail className="w-4 h-4 text-[#B88E39]" />
-                <span>Email: {contactSettings.email || "trassesbykay6@gmail.com"}</span>
+                <span>Email: {contactSettings.email || "tressesbykay6@gmail.com"}</span>
               </a>
             </div>
           </div>

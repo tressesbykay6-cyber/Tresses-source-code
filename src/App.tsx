@@ -45,7 +45,7 @@ export const DEFAULT_PAGE_SETTINGS = {
     introText: "Nairobi's premier boutique beauty studio. Located at JKUAT Towers on Kenyatta Avenue, offering in-studio styling and mobile housecalls across Nairobi.",
     address: "Kenyatta Ave, Mezzanine Floor, Shop M08",
     phone: "+254 011 883 1488",
-    email: "trassesbykay6@gmail.com",
+    email: "tressesbykay6@gmail.com",
     whatsappNumber: "+254118831488",
     mapsEmbedUrl: "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3988.817294436214!2d36.8202!3d-1.2847!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x182f10d7a6e76811%3A0x62955f13fa1458e3!2sJKUAT%20Towers%2C%20Kenyatta%20Ave%2C%20Nairobi!5e0!3m2!1sen!2ske!4v1700000000000!5m2!1sen!2ske",
     hoursMonFri: "8:30 AM – 6:00 PM",

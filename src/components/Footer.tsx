@@ -1,5 +1,5 @@
 import React from 'react';
-import { MapPin, Phone, Clock, Instagram, Heart, Mail } from 'lucide-react';
+import { MapPin, Phone, Clock, Instagram, Heart, Mail, MessageCircle, ShieldCheck, FileText } from 'lucide-react';
 
 interface FooterProps {
   setActiveSection: (section: string) => void;
@@ -29,7 +29,9 @@ export const Footer: React.FC<FooterProps> = ({ setActiveSection, onOpenBooking 
             All things hair & beauty. Nairobi’s boutique beauty studio built on precision, warmth, and craft. Every appointment is treated as an occasion.
           </p>
 
-          <div className="flex items-center gap-3 pt-2">
+          <div className="pt-2 space-y-3">
+            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#1C1814]">Follow Tresses</p>
+            <div className="flex items-center gap-3">
             <a
               href="https://instagram.com/tresses_by__kay"
               target="_blank"
@@ -39,34 +41,30 @@ export const Footer: React.FC<FooterProps> = ({ setActiveSection, onOpenBooking 
             >
               <Instagram className="w-4 h-4" />
             </a>
-            <span className="text-xs text-[#B88E39] font-medium">@tresses_by__kay</span>
+            <a
+              href="https://wa.me/254118831488?text=Hi%2C%20I%27d%20like%20to%20book%20an%20appointment%20at%20Tresses%20by%20Kay."
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-9 h-9 rounded-full bg-[#FAF7F2] border border-[#E5D7C0] flex items-center justify-center text-[#B88E39] hover:bg-[#B88E39] hover:text-[#FAF7F2] transition-colors"
+              aria-label="WhatsApp Tresses by Kay"
+            >
+              <MessageCircle className="w-4 h-4" />
+            </a>
+            </div>
+            <a href="https://instagram.com/tresses_by__kay" target="_blank" rel="noopener noreferrer" className="block text-xs text-[#B88E39] font-medium hover:underline">@tresses_by__kay on Instagram</a>
           </div>
         </div>
 
-        {/* Quick Links */}
+        {/* Legal and contact information — intentionally no page navigation. */}
         <div>
           <h4 className="font-serif text-lg font-bold text-[#1C1814] mb-4">
-            Navigation
+            Policies & Help
           </h4>
           <ul className="space-y-2.5 text-sm">
-            {[
-              { id: 'home', label: 'Home Page' },
-              { id: 'services', label: 'Services & Booking' },
-              { id: 'gallery', label: 'Gallery & Transformations' },
-              { id: 'contact', label: 'Location, About & Reviews' },
-            ].map((item) => (
-              <li key={item.id}>
-                <button
-                  onClick={() => {
-                    setActiveSection(item.id);
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                  }}
-                  className="hover:text-[#B88E39] transition-colors font-medium"
-                >
-                  {item.label}
-                </button>
-              </li>
-            ))}
+            <li><button onClick={() => { setActiveSection('privacy'); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="flex items-center gap-2 hover:text-[#B88E39] transition-colors font-medium"><ShieldCheck className="w-4 h-4 text-[#B88E39]" />Privacy Policy</button></li>
+            <li><button onClick={() => { setActiveSection('terms'); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="flex items-center gap-2 hover:text-[#B88E39] transition-colors font-medium"><FileText className="w-4 h-4 text-[#B88E39]" />Terms of Service</button></li>
+            <li><a href="mailto:tressesbykay6@gmail.com" className="flex items-center gap-2 hover:text-[#B88E39] transition-colors font-medium"><Mail className="w-4 h-4 text-[#B88E39]" />Email the studio</a></li>
+            <li><a href="https://wa.me/254118831488?text=Hi%2C%20I%27d%20like%20to%20book%20an%20appointment%20at%20Tresses%20by%20Kay." target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 hover:text-[#B88E39] transition-colors font-medium"><MessageCircle className="w-4 h-4 text-[#B88E39]" />WhatsApp us</a></li>
           </ul>
         </div>
 
@@ -110,11 +108,21 @@ export const Footer: React.FC<FooterProps> = ({ setActiveSection, onOpenBooking 
           </a>
 
           <a
-            href="mailto:trassesbykay6@gmail.com"
+            href="mailto:tressesbykay6@gmail.com"
             className="flex items-center gap-3 text-sm hover:text-[#B88E39] transition-colors bg-[#FAF7F2] p-3 rounded-2xl border border-[#E5D7C0]"
           >
             <Mail className="w-4 h-4 text-[#B88E39]" />
-            <span className="font-medium text-[#1c1814] break-all">trassesbykay6@gmail.com</span>
+            <span className="font-medium text-[#1c1814] break-all">tressesbykay6@gmail.com</span>
+          </a>
+
+          <a
+            href="https://wa.me/254118831488?text=Hi%2C%20I%27d%20like%20to%20book%20an%20appointment%20at%20Tresses%20by%20Kay."
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-3 text-sm hover:text-[#B88E39] transition-colors bg-[#FAF7F2] p-3 rounded-2xl border border-[#E5D7C0]"
+          >
+            <MessageCircle className="w-4 h-4 text-[#B88E39]" />
+            <span className="font-bold text-[#1C1814]">Chat on WhatsApp</span>
           </a>
 
           <button

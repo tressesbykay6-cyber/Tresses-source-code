@@ -66,7 +66,7 @@ interface AdminDashboardProps {
 /* ─── Constants ──────────────────────────────────────────────── */
 
 type Panel = 'overview' | 'bookings' | 'calendar' | 'services' | 'stylists' | 'clients' | 'comments' | 'media' | 'pages' | 'settings';
-const categories: ServiceCategory[] = ['Braids', 'Wigs & Extensions', 'Hair Treatments & Color', 'Makeup', 'Nails'];
+const categories: ServiceCategory[] = ['Braids', 'Wigs & Extensions', 'Hair Treatments & Color', 'Hair Styling', 'Makeup', 'Nails'];
 const CHART_COLORS = ['#B88E39', '#1C1814', '#5C5247', '#E5D7C0', '#D4A853'];
 
 const emptyService: Service = {

@@ -65,10 +65,10 @@ export const TermsOfServiceView: React.FC = () => {
           </p>
           <div className="mt-2.5">
             <a
-              href="mailto:trassesbykay6@gmail.com"
+              href="mailto:tressesbykay6@gmail.com"
               className="inline-flex items-center gap-2 text-sm text-[#B88E39] hover:text-[#1C1814] font-bold"
             >
-              <span>trassesbykay6@gmail.com</span>
+              <span>tressesbykay6@gmail.com</span>
             </a>
           </div>
         </section>

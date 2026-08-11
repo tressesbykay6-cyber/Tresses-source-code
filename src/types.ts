@@ -1,4 +1,4 @@
-export type ServiceCategory = 'Braids' | 'Wigs & Extensions' | 'Hair Treatments & Color' | 'Makeup' | 'Nails';
+export type ServiceCategory = 'Braids' | 'Wigs & Extensions' | 'Hair Treatments & Color' | 'Hair Styling' | 'Makeup' | 'Nails';
 
 export interface Service {
   id: string;

@@ -26,20 +26,35 @@ export const GalleryView: React.FC<GalleryViewProps> = ({ galleryItems, pageSett
 
     // Reels shipped with the site are reliable on every device; the previous
     // third-party preview URL was the source of the blank video panel.
-    return videoUrls.length > 0 ? videoUrls : videoManifest;
+    // Include saved reels and every locally shipped reel. A partial Firestore
+    // collection must never hide the rest of the supplied video library.
+    return [...new Set([...videoUrls, ...videoManifest])];
   }, [galleryItems]);
 
   const images = useMemo(() => {
     const stills = galleryItems.filter(item => item.category !== 'Videos');
     const imageOccurrences = new Map<string, number>();
     stills.forEach((item) => imageOccurrences.set(item.image, (imageOccurrences.get(item.image) || 0) + 1));
-    return stills.map((item, index) => {
+    const usableStills = stills.map((item, index) => {
       const hasBrokenLegacyPath = !item.image || item.image.includes('Dark_themed_logo_design') || item.image.includes('logo_design');
-      // Legacy seed data used one missing placeholder for every record. Replace
-      // it (and an all-duplicate legacy feed) with the packaged real gallery.
-      const needsCuratedImage = hasBrokenLegacyPath || (stills.length > 2 && (imageOccurrences.get(item.image) || 0) > 1);
-      return needsCuratedImage ? { ...item, image: galleryManifest[index % galleryManifest.length] } : item;
+      const needsPackagedImage = hasBrokenLegacyPath || (stills.length > 2 && (imageOccurrences.get(item.image) || 0) > 1);
+      return needsPackagedImage ? { ...item, image: galleryManifest[index % galleryManifest.length] } : item;
     });
+
+    // The manifest is the complete, locally-hosted collection. Append assets
+    // that are not yet in Firestore so every supplied image remains viewable.
+    const knownImages = new Set(usableStills.map((item) => item.image));
+    const packagedStills: GalleryItem[] = galleryManifest
+      .filter((image) => !knownImages.has(image))
+      .map((image, index) => ({
+        id: `local-gallery-${index + 1}`,
+        title: 'Tresses by Kay transformation',
+        category: 'Braids',
+        image,
+        likes: 0,
+        stylistName: 'Tresses by Kay',
+      }));
+    return [...usableStills, ...packagedStills];
   }, [galleryItems]);
 
   const changeReel = useCallback((step: number) => {
@@ -77,6 +92,26 @@ export const GalleryView: React.FC<GalleryViewProps> = ({ galleryItems, pageSett
         <button aria-label="Next reel" onClick={() => changeReel(1)} className="gallery-arrow right-3 sm:right-5"><ChevronRight className="w-5 h-5" /></button>
         <div className="absolute bottom-4 left-4 sm:left-6 text-[#FAF7F2]">
           <span className="eyebrow bg-[#2F2924]/75 text-[#FAF7F2] border-white/15"><Play className="w-3.5 h-3.5 text-[#E8C987] fill-current" /> Monochrome studio reel {currentReel + 1} of {reels.length}</span>
+        </div>
+      </section>
+
+      <section aria-labelledby="reels-title" className="space-y-4">
+        <div className="reveal reveal-up flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <span className="eyebrow">Video reels</span>
+            <h2 id="reels-title" className="font-serif text-3xl font-bold text-[#2F2924] mt-2">All studio reels</h2>
+          </div>
+          <p className="text-xs text-[#665B53]">{reels.length} videos</p>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {reels.map((reel, index) => (
+            <article key={reel} className="reveal reveal-up rounded-2xl overflow-hidden border border-[#DECDBD] bg-[#403833] shadow-sm">
+              <video controls playsInline preload="metadata" poster={galleryManifest[index % galleryManifest.length]} className="aspect-video w-full object-cover" aria-label={`Tresses by Kay studio reel ${index + 1}`}>
+                <source src={reel} type="video/mp4" />
+              </video>
+              <p className="px-4 py-3 text-xs font-bold text-[#FFFDF9]">Studio reel {index + 1} of {reels.length}</p>
+            </article>
+          ))}
         </div>
       </section>
 
@@ -121,7 +156,7 @@ export const GalleryView: React.FC<GalleryViewProps> = ({ galleryItems, pageSett
             );
           })}
         </div>
-        {visibleCount < images.length && <div className="flex justify-center pt-8"><button onClick={() => setVisibleCount((count) => Math.min(count + 12, images.length))} className="min-h-11 px-7 rounded-full border border-[#C59648] text-[#2F2924] hover:bg-[#C59648] hover:text-white text-sm font-bold transition-colors">Load more looks</button></div>}
+        {visibleCount < images.length && <div className="flex flex-wrap justify-center gap-3 pt-8"><button onClick={() => setVisibleCount((count) => Math.min(count + 24, images.length))} className="min-h-11 px-7 rounded-full border border-[#C59648] text-[#2F2924] hover:bg-[#C59648] hover:text-white text-sm font-bold transition-colors">Load 24 more looks</button><button onClick={() => setVisibleCount(images.length)} className="min-h-11 px-7 rounded-full bg-[#2F2924] text-white hover:bg-[#403833] text-sm font-bold transition-colors">Show all {images.length} looks</button></div>}
       </section>
     </div>
   );
